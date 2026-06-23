@@ -95,4 +95,24 @@ CREATE TRIGGER trigger_auto_upgrade_membership
 CREATE INDEX IF NOT EXISTS idx_glam_points_history_user
   ON public.glam_points_history (user_id, created_at DESC);
 
+-- 7. Function: Increment total_spent atomically
+-- Updates the lifetime spending tracker for the user
+CREATE OR REPLACE FUNCTION public.increment_total_spent(
+  p_user_id UUID,
+  p_amount  INTEGER  -- amount in rupees
+)
+RETURNS INTEGER AS $$
+DECLARE
+  v_new_total INTEGER;
+BEGIN
+  UPDATE public.profiles
+    SET total_spent = total_spent + p_amount,
+        updated_at = NOW()
+  WHERE id = p_user_id
+  RETURNING total_spent INTO v_new_total;
+  
+  RETURN v_new_total;
+END;
+$$ LANGUAGE plpgsql;
+
 SELECT 'GLAM_POINTS_MIGRATION executed successfully ✅' AS result;

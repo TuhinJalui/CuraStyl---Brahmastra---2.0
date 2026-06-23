@@ -352,6 +352,30 @@ export default function SalonDetailClient({ salon }: { salon: Salon }) {
                   <Heart className={cn("w-5 h-5 transition-all", isFav ? "fill-pink-500 text-pink-500" : "text-white/60")} />
                 </button>
                 <button
+                  onClick={() => {
+                    const hasCoords = salon.lat && salon.lng;
+                    const googleMapsUrl = salon.google_maps_url
+                      ? salon.google_maps_url
+                      : hasCoords
+                      ? `https://www.google.com/maps/search/?api=1&query=${salon.lat},${salon.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${salon.name} ${salon.address} ${salon.city}`)}`;
+                    
+                    if (navigator.share) {
+                      navigator.share({
+                        title: salon.name,
+                        text: `Check out ${salon.name} - ${salon.tagline || 'Beauty Salon'}`,
+                        url: googleMapsUrl,
+                      }).catch(() => {
+                        // Fallback if share fails
+                        navigator.clipboard.writeText(googleMapsUrl);
+                        toast.success("Google Maps link copied to clipboard!");
+                      });
+                    } else {
+                      // Fallback for browsers without Web Share API
+                      navigator.clipboard.writeText(googleMapsUrl);
+                      toast.success("Google Maps link copied to clipboard!");
+                    }
+                  }}
                   className="p-2.5 rounded-xl glass border border-white/10 hover:bg-white/10 transition-all"
                   aria-label="Share"
                 >
@@ -632,10 +656,61 @@ export default function SalonDetailClient({ salon }: { salon: Salon }) {
                     )}
                   </div>
 
-                  {/* Map placeholder */}
-                  <div className="mt-4 rounded-xl bg-white/5 border border-white/10 h-40 flex items-center justify-center text-white/30 text-sm">
-                    <MapPin className="w-5 h-5 mr-2" /> Map View (Google Maps integration)
-                  </div>
+                  {/* Interactive Map + Google Maps link */}
+                  {(() => {
+                    const hasCoords = salon.lat && salon.lng;
+                    const googleMapsUrl = salon.google_maps_url
+                      ? salon.google_maps_url
+                      : hasCoords
+                      ? `https://www.google.com/maps/search/?api=1&query=${salon.lat},${salon.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${salon.name} ${salon.address} ${salon.city}`)}`;
+
+                    const osmEmbedUrl = hasCoords
+                      ? `https://www.openstreetmap.org/export/embed.html?bbox=${salon.lng! - 0.005},${salon.lat! - 0.005},${salon.lng! + 0.005},${salon.lat! + 0.005}&layer=mapnik&marker=${salon.lat},${salon.lng}`
+                      : null;
+
+                    return (
+                      <div className="mt-4 space-y-2">
+                        {osmEmbedUrl ? (
+                          <a
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-xl overflow-hidden border border-white/10 hover:border-purple-500/40 transition-colors group relative"
+                            title="Click to open in Google Maps"
+                          >
+                            <iframe
+                              src={osmEmbedUrl}
+                              className="w-full h-52 pointer-events-none"
+                              style={{ border: 0 }}
+                              loading="lazy"
+                              title={`Map showing location of ${salon.name}`}
+                            />
+                            {/* Overlay hint */}
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MapPin className="w-4 h-4 text-pink-400" />
+                              <span className="text-white text-xs font-medium">Open in Google Maps →</span>
+                            </div>
+                          </a>
+                        ) : (
+                          <div className="rounded-xl bg-white/5 border border-white/10 h-32 flex flex-col items-center justify-center gap-2 text-white/30 text-sm">
+                            <MapPin className="w-5 h-5" />
+                            <span>Location not pinned yet</span>
+                          </div>
+                        )}
+                        <a
+                          href={googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 text-white/60 hover:text-white text-sm transition-all"
+                        >
+                          <MapPin className="w-4 h-4 text-pink-400" />
+                          <span>Open in Google Maps</span>
+                        </a>
+                      </div>
+                    );
+                  })()}
+
                 </div>
               </div>
             )}

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   const next = request.nextUrl.searchParams.get("next") ?? "/";
+  const role = request.nextUrl.searchParams.get("role") ?? "customer";
   const cookieStore = await cookies();
 
   // Use NEXT_PUBLIC_SITE_URL for consistent redirect behavior across environments
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}&role=${role}`,
       queryParams: {
         access_type: "offline",
         prompt: "consent",

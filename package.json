@@ -41,6 +41,7 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.18.0",
     "next": "16.2.9",
     "openai": "^6.42.0",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

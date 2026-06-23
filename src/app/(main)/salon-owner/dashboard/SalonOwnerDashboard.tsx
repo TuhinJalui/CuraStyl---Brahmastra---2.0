@@ -42,6 +42,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Service, Staff } from "@/types";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
+import SalonOwnerPreview from "@/components/salon/SalonOwnerPreview";
+import LocationPicker from "@/components/shared/LocationPicker";
 
 const QrScanner = dynamic(() => import("@/components/shared/QrScanner"), { ssr: false });
 
@@ -134,6 +136,7 @@ const tabs = [
   { id: "my-salon",  label: "My Salon",  icon: Store },
   { id: "services",  label: "Services",  icon: Scissors },
   { id: "staff",     label: "Staff",     icon: Users },
+  { id: "reviews",   label: "Reviews",   icon: Star },
   { id: "analytics", label: "Analytics", icon: BarChart2 },
   { id: "my-plan",   label: "My Plan",   icon: Crown },
 ];
@@ -180,6 +183,8 @@ export default function SalonOwnerDashboard() {
   const [salonSaving, setSalonSaving] = useState(false);
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string; is_closed: boolean }>>({});
   const [galleryImagesText, setGalleryImagesText] = useState("");
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Plan
   const [planData, setPlanData] = useState<any>(null);
@@ -201,6 +206,9 @@ export default function SalonOwnerDashboard() {
         setSalonForm(data.salon);
         setWorkingHours(data.salon.working_hours ?? {});
         setGalleryImagesText((data.salon.gallery_images ?? []).join("\n"));
+        if (data.salon.lat && data.salon.lng) {
+          setLocationCoords({ lat: data.salon.lat, lng: data.salon.lng });
+        }
       } else {
         // If owner role but no salon in DB, redirect to register
         router.replace("/salon-owner/register");
@@ -216,7 +224,6 @@ export default function SalonOwnerDashboard() {
     if (!salonId) return;
     setBookingsLoading(true);
     const supabase = createClient();
-    const today = new Date().toISOString().split("T")[0];
     const { data, error } = await supabase
       .from("bookings")
       .select(`id,booking_id,booking_date,time_slot,status,qr_verified,total_amount,final_amount,payment_method,
@@ -224,10 +231,9 @@ export default function SalonOwnerDashboard() {
         service:services(name,category,duration),
         staff:staff(name,role)`)
       .eq("salon_id", salonId)
-      .gte("booking_date", today)
-      .order("booking_date", { ascending: true })
-      .order("time_slot", { ascending: true })
-      .limit(100);
+      .order("booking_date", { ascending: false })
+      .order("time_slot", { ascending: false })
+      .limit(200);
     if (!error && data) setLiveBookings(data as unknown as LiveBooking[]);
     setBookingsLoading(false);
   }, [salonId]);
@@ -422,7 +428,9 @@ export default function SalonOwnerDashboard() {
         body: JSON.stringify({
           ...salonForm,
           working_hours: workingHours,
-          gallery_images: gallery
+          gallery_images: gallery,
+          lat: locationCoords?.lat,
+          lng: locationCoords?.lng,
         }),
       });
       const data = await res.json();
@@ -537,9 +545,17 @@ export default function SalonOwnerDashboard() {
                   <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Staff</span>
                 </Button>
               ) : activeTab === "my-salon" ? (
-                <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-500" onClick={handleSaveSalon} disabled={salonSaving}>
-                  <Save className="w-4 h-4" />{salonSaving ? "Saving…" : "Save Changes"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant={isPreviewMode ? "glass" : "outline"} className="gap-1.5" onClick={() => setIsPreviewMode(!isPreviewMode)}>
+                    {isPreviewMode ? <Edit2 className="w-4 h-4" /> : <Store className="w-4 h-4" />}
+                    {isPreviewMode ? "Edit" : "Preview"}
+                  </Button>
+                  {!isPreviewMode && (
+                    <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-500" onClick={handleSaveSalon} disabled={salonSaving}>
+                      <Save className="w-4 h-4" />{salonSaving ? "Saving…" : "Save Changes"}
+                    </Button>
+                  )}
+                </div>
               ) : null}
             </div>
           </div>
@@ -723,6 +739,8 @@ export default function SalonOwnerDashboard() {
               <div className="space-y-6">
                 {salonLoading ? (
                   <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" /></div>
+                ) : isPreviewMode ? (
+                  <SalonOwnerPreview salon={salonData as any} onEdit={() => setIsPreviewMode(false)} />
                 ) : (
                   <>
                     {/* Basic Info */}
@@ -757,11 +775,20 @@ export default function SalonOwnerDashboard() {
                     {/* Location & Contact */}
                     <div className="glass-card p-5 space-y-4">
                       <h2 className="font-semibold text-white flex items-center gap-2"><MapPin className="w-4 h-4 text-purple-400" />Location & Contact</h2>
+                      
+                      {/* Map-based Location Picker */}
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-white/50 mb-1.5">Salon Location *</label>
+                        <LocationPicker
+                          initialLocation={locationCoords && salonForm.address ? { address: salonForm.address, lat: locationCoords.lat, lng: locationCoords.lng } : undefined}
+                          onLocationSelect={(location) => {
+                            setSalonForm(p => ({ ...p, address: location.address }));
+                            setLocationCoords({ lat: location.lat, lng: location.lng });
+                          }}
+                        />
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs text-white/50 mb-1.5">Full Address</label>
-                          <Input value={salonForm.address ?? ""} onChange={e => setSalonForm(p => ({ ...p, address: e.target.value }))} placeholder="Shop no, building, street" />
-                        </div>
                         <div>
                           <label className="block text-xs text-white/50 mb-1.5">Area</label>
                           <Input value={salonForm.area ?? ""} onChange={e => setSalonForm(p => ({ ...p, area: e.target.value }))} placeholder="e.g. Bandra West" />
@@ -871,7 +898,6 @@ export default function SalonOwnerDashboard() {
                       )}
                     </p>
                   </div>
-                  <Button size="sm" className="gap-1.5" onClick={openAddService}><Plus className="w-4 h-4" />Add Service</Button>
                 </div>
                 <div className="space-y-3">
                   {servicesLoading ? (
@@ -914,7 +940,7 @@ export default function SalonOwnerDashboard() {
                       {staff.length >= staffLimit && staffLimit !== Infinity && <span className="text-amber-400 ml-2">• Upgrade to add more</span>}
                     </p>
                   </div>
-                  <Button size="sm" className="gap-1.5" onClick={openAddStaff}><Plus className="w-4 h-4" />Add Staff</Button>
+                  
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {staffLoading ? (

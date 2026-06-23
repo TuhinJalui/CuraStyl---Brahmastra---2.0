@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useAuthStore } from "@/lib/auth/store";
 import { createClient } from "@/lib/supabase/client";
+import LocationPicker from "@/components/shared/LocationPicker";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -67,6 +68,8 @@ export default function SalonRegisterClient() {
     name: "", tagline: "", description: "", category: "unisex",
     address: "", area: "", pincode: "", phone: "", email: "", website: "", instagram: "",
   });
+
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string; is_closed: boolean }>>(
     DAYS.reduce((acc, day) => {
@@ -150,6 +153,8 @@ export default function SalonRegisterClient() {
           working_hours: workingHours,
           plan_tier: selectedPlan,
           plan_expires_at: selectedPlan !== "free" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+          lat: locationCoords?.lat,
+          lng: locationCoords?.lng,
         })
         .select("id")
         .single();
@@ -282,10 +287,18 @@ export default function SalonRegisterClient() {
           {step === 2 && (
             <div className="space-y-5">
               <h2 className="text-lg font-semibold text-white mb-1">Location & Contact</h2>
+              
+              {/* Map-based Location Picker */}
               <div>
-                <label className="block text-xs text-white/50 mb-1.5">Full Address *</label>
-                <Input placeholder="Shop no, building, street" value={form.address} onChange={e => update("address", e.target.value)} />
+                <label className="block text-xs text-white/50 mb-1.5">Salon Location *</label>
+                <LocationPicker
+                  onLocationSelect={(location) => {
+                    setForm(prev => ({ ...prev, address: location.address }));
+                    setLocationCoords({ lat: location.lat, lng: location.lng });
+                  }}
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-white/50 mb-1.5">Area *</label>

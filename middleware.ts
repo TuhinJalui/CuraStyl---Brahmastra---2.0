@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ["/checkout", "/salon-owner/dashboard", "/admin"];
+const PROTECTED_ROUTES = ["/checkout", "/salon-owner/dashboard", "/salon-owner/register", "/admin"];
 // Routes that require salon_owner role
-const OWNER_ROUTES = ["/salon-owner/dashboard"];
+const OWNER_ROUTES = ["/salon-owner/dashboard", "/salon-owner/register"];
 // Routes that require admin role
 const ADMIN_ROUTES = ["/admin"];
 // Auth routes — logged-in users should be redirected away
-const AUTH_ROUTES = ["/auth/login", "/auth/register"];
+const AUTH_ROUTES = ["/auth/login", "/auth/register", "/auth/salon-owner-login"];
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next();

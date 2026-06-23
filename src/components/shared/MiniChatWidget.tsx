@@ -83,8 +83,10 @@ export default function MiniChatWidget() {
   // Avoid rendering the floating UI during SSR to keep server/client HTML consistent.
   if (!mounted) return null;
 
-  // Do not show floating MiniChat on the full AI Assistant page
+  // Do not show floating MiniChat on the full AI Assistant page, any auth pages, or salon-owner routes
   if (pathname?.startsWith("/ai-assistant")) return null;
+  if (pathname?.startsWith("/auth")) return null;
+  if (pathname?.startsWith("/salon-owner")) return null;
 
   const startRecording = async () => {
     try {

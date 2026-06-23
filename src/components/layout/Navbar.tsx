@@ -27,9 +27,6 @@ const CUSTOMER_NAV = [
 const OWNER_NAV = [
   { label: "Dashboard", href: "/salon-owner/dashboard" },
   { label: "Salons", href: "/salons" },
-  { label: "Bookings", href: "/salon-owner/dashboard?tab=bookings" },
-  { label: "Analytics", href: "/salon-owner/dashboard?tab=analytics" },
-  { label: "My Plan", href: "/salon-owner/dashboard?tab=my-plan" },
 ];
 
 export default function Navbar() {
@@ -50,7 +47,7 @@ export default function Navbar() {
     ? OWNER_NAV
     : isLoggedIn
     ? CUSTOMER_NAV
-    : CUSTOMER_NAV;
+    : CUSTOMER_NAV.filter(item => item.label !== "Dashboard"); // Hide Dashboard for non-logged users
 
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -180,6 +177,7 @@ export default function Navbar() {
                             customer_arrived:  { dot: "bg-emerald-400" },
                             plan_upgrade:      { dot: "bg-purple-400" },
                             glam_points:       { dot: "bg-pink-400" },
+                            new_review:        { dot: "bg-yellow-400" },
                           } as Record<string, { dot: string }>;
                           const cfg = typeConfig[notif.type] ?? { dot: "bg-purple-400" };
                           return (
@@ -283,9 +281,6 @@ export default function Navbar() {
                             <Gift className="w-4 h-4" />
                             <span>GlamPoints</span>
                             <span className="ml-auto text-xs font-bold text-pink-400">{(profile as any)?.glam_points ?? 0} pts</span>
-                          </Link>
-                          <Link href="/salon-owner/register" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-purple-300/80 hover:bg-purple-500/10 hover:text-purple-200 transition-all">
-                            <Store className="w-4 h-4" /> List Your Salon
                           </Link>
                         </>
                       )}
@@ -395,7 +390,7 @@ export default function Navbar() {
               <>
                 <Link href="/auth/login" className="block"><Button variant="ghost" className="w-full justify-start" size="sm">Sign In</Button></Link>
                 <Link href="/auth/register" className="block"><Button className="w-full" size="sm">Get Started</Button></Link>
-                <Link href="/salon-owner/register" className="block"><Button variant="outline" className="w-full" size="sm">List Your Salon</Button></Link>
+                <Link href="/auth/register?role=salon_owner" className="block"><Button variant="outline" className="w-full" size="sm">List Your Salon</Button></Link>
               </>
             )}
           </div>

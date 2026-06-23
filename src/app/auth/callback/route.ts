@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
+  const role = searchParams.get("role") ?? "customer";
 
   // Use NEXT_PUBLIC_SITE_URL for consistent redirect behavior
   const siteUrl =
@@ -34,6 +35,16 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
+      // Check if profile already exists to preserve role and check for role mismatch
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      // Use existing role if profile exists, otherwise use the role from URL parameter
+      const finalRole = existingProfile?.role ?? role;
+
       // Auto-save profile details from Google OAuth
       const meta = data.user.user_metadata ?? {};
       const { error: profileError } = await supabase.from("profiles").upsert(
@@ -43,7 +54,7 @@ export async function GET(request: NextRequest) {
           full_name: meta.full_name ?? meta.name ?? data.user.email?.split("@")[0] ?? "",
           avatar_url: meta.avatar_url ?? meta.picture ?? null,
           phone: meta.phone ?? null,
-          role: "customer",
+          role: finalRole,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }
@@ -55,7 +66,26 @@ export async function GET(request: NextRequest) {
         console.log("✅ Profile created/updated successfully");
       }
 
-      return NextResponse.redirect(`${siteUrl}${next}`);
+      // Determine redirect based on final role
+      // If salon owner and has existing salon, go to dashboard; otherwise go to register
+      let redirectPath;
+      if (finalRole === "salon_owner") {
+        if (existingProfile) {
+          // Existing salon owner - check if they have a salon
+          const { data: salon } = await supabase
+            .from("salons")
+            .select("id")
+            .eq("owner_id", data.user.id)
+            .maybeSingle();
+          redirectPath = salon ? "/salon-owner/dashboard" : "/salon-owner/register";
+        } else {
+          // New salon owner - go to register their salon
+          redirectPath = "/salon-owner/register";
+        }
+      } else {
+        redirectPath = next;
+      }
+      return NextResponse.redirect(`${siteUrl}${redirectPath}`);
     }
   }
 

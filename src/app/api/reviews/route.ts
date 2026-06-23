@@ -172,6 +172,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Get salon owner info to send notification
+  const { data: salon } = await supabase
+    .from("salons")
+    .select("owner_id, name")
+    .eq("id", salon_id)
+    .single();
+
+  // Send notification to salon owner about the new review
+  if (salon && salon.owner_id) {
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+
+    const customerName = userProfile?.full_name ?? "A customer";
+    const stars = "⭐".repeat(rating);
+    
+    await supabase.from("notifications").insert({
+      user_id: salon.owner_id,
+      type: "new_review",
+      title: `New ${rating}-Star Review!`,
+      message: `${customerName} left a ${rating}-star review ${stars} for ${salon.name}: "${comment.substring(0, 80)}${comment.length > 80 ? "..." : ""}"`,
+      link: `/salon-owner/dashboard?tab=reviews`,
+    });
+  }
+
   return NextResponse.json({ review }, { status: 201 });
 }
 

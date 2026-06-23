@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Scissors, Eye, EyeOff, Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Scissors, Eye, EyeOff, Loader2, Mail, Lock, AlertCircle, ShieldAlert, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
@@ -24,6 +24,7 @@ function LoginForm() {
   const errorMessages: Record<string, string> = {
     google_oauth_failed: "Google sign-in failed. Please try again.",
     auth_callback_failed: "Authentication failed. Please try again.",
+    salon_owner_mismatch: "This account is registered as a Salon Owner. Please use the Salon Owner Sign In page instead.",
   };
   const [error, setError] = useState<string | null>(
     urlError ? errorMessages[urlError] ?? "An error occurred. Please try again." : null
@@ -51,14 +52,19 @@ function LoginForm() {
         .eq("id", authData.user?.id)
         .single();
 
+      // Block salon owners — they must use the Salon Owner portal
+      if (profile?.role === "salon_owner" || profile?.role === "admin") {
+        await supabase.auth.signOut();
+        setIsLoading(false);
+        setError(
+          "This account is registered as a Salon Owner. Please use the Salon Owner Sign In page instead."
+        );
+        return;
+      }
+
       setIsLoading(false);
       toast.success("Welcome back! 💄");
-
-      if (profile?.role === "salon_owner" && next === "/") {
-        router.push("/salon-owner/dashboard");
-      } else {
-        router.push(next);
-      }
+      router.push(next);
       router.refresh();
     }
   };
@@ -147,6 +153,20 @@ function LoginForm() {
               Sign up free
             </Link>
           </p>
+
+          {/* Salon owner portal link */}
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <p className="text-xs text-white/30 flex items-center justify-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              Are you a salon owner?{" "}
+              <Link
+                href="/auth/salon-owner-login"
+                className="text-amber-400 hover:text-amber-300 font-medium transition-colors"
+              >
+                Sign in here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

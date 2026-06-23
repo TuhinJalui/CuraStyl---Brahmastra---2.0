@@ -22,6 +22,7 @@ export interface Salon {
   pincode: string;
   lat?: number;
   lng?: number;
+  google_maps_url?: string;
   phone: string;
   email: string;
   website?: string;

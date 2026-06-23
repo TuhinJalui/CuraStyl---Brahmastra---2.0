@@ -113,6 +113,29 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Allow OpenStreetMap iframe embeds on salon detail pages
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https:",
+              "media-src 'self' blob:",
+              "connect-src 'self' https:",
+              "frame-src 'self' https://www.openstreetmap.org https://openstreetmap.org",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
   // Suppress known hydration issues with browser extensions
   reactStrictMode: true,
 };

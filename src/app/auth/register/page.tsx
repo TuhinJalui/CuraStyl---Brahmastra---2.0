@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Eye, EyeOff, Loader2, Mail, Lock, User, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { Briefcase } from "lucide-react";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
-  const [role, setRole] = useState<"customer" | "salon_owner">("customer");
+  const searchParams = useSearchParams();
+  const initialRole = searchParams.get("role") === "salon_owner" ? "salon_owner" : "customer";
+  const [role, setRole] = useState<"customer" | "salon_owner">(initialRole);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,17 +46,73 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     const supabase = createClient();
+
+    // Look up what role this email has before signing up
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("email", form.email)
+      .maybeSingle();
+
+    if (existingProfile) {
+      setIsLoading(false);
+      if (existingProfile.role === "salon_owner" && role === "customer") {
+        setError(
+          "This email is already registered as a Salon Owner. Please use the Salon Owner Sign In page."
+        );
+      } else if (existingProfile.role === "customer" && role === "salon_owner") {
+        setError(
+          "This email is already registered as a Customer. Please use the Customer Sign In page."
+        );
+      } else {
+        setError("An account with this email already exists. Please sign in instead.");
+      }
+      return;
+    }
+
     const { data, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: { full_name: form.name, phone: form.phone || "", role },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?role=${role}`,
       },
     });
 
     if (authError) {
-      setError(authError.message);
+      // Check for role mismatch: user already exists with a different role
+      if (
+        authError.message.toLowerCase().includes("already registered") ||
+        authError.message.toLowerCase().includes("already been registered") ||
+        authError.message.toLowerCase().includes("user already exists")
+      ) {
+        // Look up what role this email has
+        const supabase2 = createClient();
+        const { data: existingProfile } = await supabase2
+          .from("profiles")
+          .select("role")
+          .eq("email", form.email)
+          .maybeSingle();
+
+        if (existingProfile) {
+          const existingRole = existingProfile.role;
+          if (existingRole === "salon_owner" && role === "customer") {
+            setError(
+              "This email is already registered as a Salon Owner. Please use the Salon Owner Sign In page."
+            );
+          } else if (existingRole === "customer" && role === "salon_owner") {
+            setError(
+              "This email is already registered as a Customer. Please use the Customer Sign In page."
+            );
+          } else {
+            setError("An account with this email already exists. Please sign in instead.");
+          }
+        } else {
+          setError("An account with this email already exists. Please sign in instead.");
+        }
+      } else {
+        setError(authError.message);
+      }
       setIsLoading(false);
       return;
     }
@@ -99,31 +158,51 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center px-4 py-16 relative overflow-hidden">
-      <div className="absolute top-1/3 right-10 w-72 h-72 bg-pink-600/15 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/3 left-10 w-72 h-72 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className={`absolute top-1/3 right-10 w-72 h-72 ${role === "salon_owner" ? "bg-amber-600/10" : "bg-pink-600/15"} rounded-full blur-[100px] pointer-events-none transition-all duration-500`} />
+      <div className={`absolute bottom-1/3 left-10 w-72 h-72 ${role === "salon_owner" ? "bg-purple-600/15" : "bg-purple-600/10"} rounded-full blur-[100px] pointer-events-none transition-all duration-500`} />
 
       <div className="w-full max-w-md relative">
         <div className="text-center mb-8">
           <Link href="/landing" className="inline-flex items-center gap-2">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Scissors className="w-6 h-6 text-white" />
+            <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500",
+              role === "salon_owner" 
+                ? "bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30" 
+                : "bg-gradient-to-br from-purple-400 to-pink-500 shadow-purple-500/30"
+            )}>
+              {role === "salon_owner" ? <Briefcase className="w-6 h-6 text-white" /> : <Scissors className="w-6 h-6 text-white" />}
             </div>
             <span className="text-2xl font-bold gradient-text">Mumbai GlamHub</span>
           </Link>
         </div>
 
-        <div className="glass-card p-8">
+        <div className={cn("glass-card p-8 transition-all duration-500",
+          role === "salon_owner" ? "border-amber-500/20" : ""
+        )}>
           <h1 className="text-2xl font-bold text-white mb-1">Create account</h1>
           <p className="text-white/50 text-sm mb-6">Join thousands of beauty enthusiasts in Mumbai</p>
 
           <div className="grid grid-cols-2 gap-2 mb-6">
-            {(["customer", "salon_owner"] as const).map((r) => (
-              <button key={r} id={`role-${r}`} type="button" onClick={() => setRole(r)}
-                className={cn("py-3 rounded-xl border text-sm font-medium transition-all duration-200",
-                  role === r ? "border-purple-400 bg-purple-500/20 text-purple-300" : "border-white/10 text-white/50 hover:border-purple-500/30")}>
-                {r === "customer" ? "👤 Customer" : "💼 Salon Owner"}
-              </button>
-            ))}
+            {(["customer", "salon_owner"] as const).map((r) => {
+              const isActive = role === r;
+              let activeClass = "";
+              let inactiveClass = "";
+              
+              if (r === "salon_owner") {
+                activeClass = "border-amber-400 bg-amber-500/20 text-amber-300";
+                inactiveClass = "border-white/10 text-white/50 hover:border-amber-500/30";
+              } else {
+                activeClass = "border-purple-400 bg-purple-500/20 text-purple-300";
+                inactiveClass = "border-white/10 text-white/50 hover:border-purple-500/30";
+              }
+
+              return (
+                <button key={r} id={`role-${r}`} type="button" onClick={() => setRole(r)}
+                  className={cn("py-3 rounded-xl border text-sm font-medium transition-all duration-300",
+                    isActive ? activeClass : inactiveClass)}>
+                  {r === "customer" ? "👤 Customer" : "💼 Salon Owner"}
+                </button>
+              );
+            })}
           </div>
 
           {error && (
@@ -183,16 +262,26 @@ export default function RegisterPage() {
             </div>
 
             <label className="flex items-start gap-2.5 cursor-pointer">
-              <input id="reg-terms" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-purple-500" />
+              <input id="reg-terms" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className={cn("mt-0.5", role === "salon_owner" ? "accent-amber-500" : "accent-purple-500")} />
               <span className="text-xs text-white/50 leading-relaxed">
                 I agree to the{" "}
-                <Link href="/terms" className="text-purple-400 hover:text-purple-300">Terms of Service</Link>
+                <Link href="/terms" className={role === "salon_owner" ? "text-amber-400 hover:text-amber-300" : "text-purple-400 hover:text-purple-300"}>Terms of Service</Link>
                 {" "}and{" "}
-                <Link href="/privacy" className="text-purple-400 hover:text-purple-300">Privacy Policy</Link>
+                <Link href="/privacy" className={role === "salon_owner" ? "text-amber-400 hover:text-amber-300" : "text-purple-400 hover:text-purple-300"}>Privacy Policy</Link>
               </span>
             </label>
 
-            <Button id="register-submit-btn" type="submit" disabled={isLoading || !agreed} className="w-full h-11">
+            <Button
+              id="register-submit-btn"
+              type="submit"
+              disabled={isLoading || !agreed}
+              className={cn(
+                "w-full h-11 transition-all duration-300",
+                role === "salon_owner"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white border-0"
+                  : ""
+              )}
+            >
               {isLoading
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account…</>
                 : role === "salon_owner" ? "Create Account & List Salon" : "Create Free Account"
@@ -206,7 +295,7 @@ export default function RegisterPage() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          <a href="/api/auth/google" id="google-register-btn"
+          <a href={`/api/auth/google?role=${role}`} id="google-register-btn"
             className="flex items-center justify-center gap-2.5 h-11 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-all w-full">
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -219,10 +308,59 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-white/40 mt-6">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-purple-400 hover:text-purple-300 font-medium transition-colors">Sign in</Link>
+            <Link
+              href={role === "salon_owner" ? "/auth/salon-owner-login" : "/auth/login"}
+              className={cn(
+                "font-medium transition-colors",
+                role === "salon_owner" ? "text-amber-400 hover:text-amber-300" : "text-purple-400 hover:text-purple-300"
+              )}
+            >
+              Sign in
+            </Link>
           </p>
+
+          {/* Role-specific login hint */}
+          {role === "salon_owner" ? (
+            <div className="mt-4 pt-4 border-t border-white/10 text-center">
+              <p className="text-xs text-white/30 flex items-center justify-center gap-1">
+                <Briefcase className="w-3 h-3" />
+                Already a salon owner?{" "}
+                <Link
+                  href="/auth/salon-owner-login"
+                  className="text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                >
+                  Sign in to your dashboard
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 pt-4 border-t border-white/10 text-center">
+              <p className="text-xs text-white/30 flex items-center justify-center gap-1">
+                <Briefcase className="w-3 h-3" />
+                Are you a salon owner?{" "}
+                <Link
+                  href="/auth/salon-owner-login"
+                  className="text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                >
+                  Sign in here
+                </Link>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen gradient-hero flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }

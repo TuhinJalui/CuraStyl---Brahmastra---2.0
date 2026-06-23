@@ -63,7 +63,7 @@ export default function Footer() {
             <h4 className="font-semibold text-white mb-4">For Business</h4>
             <ul className="space-y-3">
               {[
-                { label: "List Your Salon", href: "/salon-owner/register" },
+                { label: "List Your Salon", href: "/auth/register?role=salon_owner" },
                 { label: "Owner Dashboard", href: "/salon-owner/dashboard" },
                 { label: "Pricing Plans", href: "/pricing" },
                 { label: "Partner Program", href: "/partners" },
