@@ -84,9 +84,15 @@ const MEMBERSHIP_TIERS = [
 ];
 
 export default function RewardsPage() {
-  const { profile, isLoggedIn, isLoading } = useAuth();
+  const { profile, isLoggedIn, isLoading, isSalonOwner } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"earn" | "redeem" | "tiers">("earn");
+
+  useEffect(() => {
+    if (isLoggedIn && isSalonOwner) {
+      router.replace("/salon-owner/dashboard");
+    }
+  }, [isLoggedIn, isSalonOwner, router]);
 
   const glamPoints = (profile as any)?.glam_points ?? 0;
   const membershipTier = (profile as any)?.membership_tier ?? "basic";

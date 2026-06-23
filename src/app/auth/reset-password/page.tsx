@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
       <div className="absolute top-1/3 left-10 w-72 h-72 bg-purple-600/15 rounded-full blur-[100px] pointer-events-none" />
       <div className="w-full max-w-md relative">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
+          <Link href="/landing" className="inline-flex items-center gap-2">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <Scissors className="w-6 h-6 text-white" />
             </div>

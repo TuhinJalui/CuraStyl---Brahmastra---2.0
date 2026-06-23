@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { generateBookingId } from "@/lib/utils";
+
+function getServiceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -170,14 +178,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create booking. " + error.message }, { status: 500 });
     }
 
+    // Fetch salon info for notifications and glam points
+    const { data: salonInfo } = await supabase
+      .from("salons")
+      .select("name, owner_id")
+      .eq("id", salonId)
+      .single();
+    const salonName = salonInfo?.name ?? "the salon";
+
     // ── Auto-send booking confirmation notification ───────────────────────
     try {
-      const { data: salonInfo } = await supabase
-        .from("salons")
-        .select("name, owner_id")
-        .eq("id", salonId)
-        .single();
-
       // Get staff name if selected
       let staffName = "Any available";
       if (staffId) {
@@ -195,8 +205,6 @@ export async function POST(req: NextRequest) {
         .select("full_name, phone")
         .eq("id", user.id)
         .single();
-
-      const salonName = salonInfo?.name ?? "the salon";
 
       const bookingDateFmt = new Date(date + "T00:00:00").toLocaleDateString("en-IN", {
         weekday: "long", day: "numeric", month: "long",
@@ -246,6 +254,31 @@ export async function POST(req: NextRequest) {
     } catch (notifErr) {
       // Notification failure should not fail the booking
       console.warn("Notification insert failed:", notifErr);
+    }
+
+    // ── Award GlamPoints for online payments (cash handled on QR scan) ────────
+    // 10 points per ₹100 spent
+    if (paymentMethod !== "cash_in_hand") {
+      try {
+        const serviceSupabase = getServiceSupabase();
+        const pointsToAward = Math.floor(finalAmount / 100) * 10;
+        if (pointsToAward > 0) {
+          await serviceSupabase.rpc("award_glam_points", {
+            p_user_id: user.id,
+            p_points: pointsToAward,
+            p_type: "earned",
+            p_description: `Earned ${pointsToAward} pts for ${service.name} at ${salonName} (₹${finalAmount} paid)`,
+            p_booking_id: bookingId,
+          });
+        }
+        // Increment total_spent (lifetime spend tracker)
+        await serviceSupabase.rpc("increment_total_spent", {
+          p_user_id: user.id,
+          p_amount: finalAmount,
+        }).maybeSingle(); // non-fatal if function doesn't exist yet
+      } catch (pointsErr) {
+        console.warn("GlamPoints award failed (non-fatal):", pointsErr);
+      }
     }
 
     return NextResponse.json({ booking, message: "Booking confirmed!" }, { status: 201 });

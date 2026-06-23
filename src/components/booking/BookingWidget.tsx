@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice, generateBookingId } from "@/lib/utils";
 import type { Salon, Service, Staff } from "@/types";
 import Image from "next/image";
+import { useAuth } from "@/lib/auth/useAuth";
 
 interface Props {
   salon: Salon;
@@ -33,12 +34,33 @@ const TIME_SLOTS = [
 const UNAVAILABLE = new Set(["11:00 AM", "12:00 PM", "01:30 PM", "03:00 PM", "05:30 PM"]);
 
 export default function BookingWidget({ salon, services, staff }: Props) {
+  const { isSalonOwner } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
+
+  if (isSalonOwner) {
+    return (
+      <div className="glass-dark rounded-2xl border border-purple-500/20 overflow-hidden shadow-2xl shadow-black/40 p-6 text-center">
+        <div className="bg-purple-500/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20">
+          <User className="w-6 h-6 text-purple-400" />
+        </div>
+        <h3 className="text-white font-semibold mb-2">Salon Owner Account</h3>
+        <p className="text-white/60 text-xs leading-relaxed mb-4">
+          You are currently signed in as a Salon Owner. Booking appointments is only available for Customer accounts.
+        </p>
+        <Button
+          onClick={() => router.push("/salon-owner/dashboard")}
+          className="w-full text-xs"
+        >
+          Go to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   const today = new Date().toISOString().split("T")[0];
 

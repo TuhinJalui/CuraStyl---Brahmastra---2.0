@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js";
 
 /** Parse "10:30 AM" / "14:00" style time strings into { hours, minutes } */
 function parseTime(timeStr: string): { hours: number; minutes: number } {
-  // Handle AM/PM format (e.g. "10:30 AM")
   const ampm = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (ampm) {
     let h = parseInt(ampm[1]);
@@ -15,7 +14,6 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
     if (period === "PM" && h !== 12) h += 12;
     return { hours: h, minutes: m };
   }
-  // Handle 24-hr format (e.g. "14:00")
   const parts = timeStr.split(":");
   return { hours: parseInt(parts[0]), minutes: parseInt(parts[1] ?? "0") };
 }
@@ -33,15 +31,16 @@ function buildAppointmentDate(dateStr: string, timeStr: string): Date {
 /**
  * GET /api/cron/booking-reminders
  *
- * This endpoint should be called by a cron job (e.g. Vercel Cron, GitHub Action,
- * or any scheduler) every 15–30 minutes.
+ * Call every 15–30 min via Vercel Cron, GitHub Actions, or any scheduler.
  *
- * It handles TWO types of notifications:
- *   1. REMINDER  – sent 2–3 hours before the appointment.
- *   2. NO-SHOW   – sent 45 min after the slot if the QR was never scanned.
+ * Handles TWO notification types:
+ *   1. REMINDER  – sent 1.5 – 3.25 hours before appointment (once per booking).
+ *   2. NO-SHOW   – sent 45 min after slot if QR was never scanned (once per booking).
  *
- * Protect with: Authorization: Bearer <CRON_SECRET> header
- *   (set CRON_SECRET in your .env.local)
+ * Uses `reminder_sent` and `noshow_sent` boolean columns on bookings
+ * to prevent duplicate notifications (reliable DB-level dedup).
+ *
+ * Protect with: Authorization: Bearer <CRON_SECRET>
  */
 export async function GET(req: NextRequest) {
   // ── Secret guard ──────────────────────────────────────────────────────────
@@ -62,7 +61,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const stats = { reminders: 0, noShows: 0, errors: 0 };
 
-  // ── Fetch confirmed, unverified future bookings (within a rolling 5-day window)
+  // ── Fetch confirmed, unverified bookings within a 5-day rolling window ────
   const windowStart = new Date(now);
   windowStart.setDate(windowStart.getDate() - 1); // 1 day ago (for no-shows)
 
@@ -79,8 +78,11 @@ export async function GET(req: NextRequest) {
       time_slot,
       status,
       qr_verified,
-      salon:salons(name),
-      service:services(name)
+      reminder_sent,
+      noshow_sent,
+      salon:salons(name, owner_id),
+      service:services(name),
+      staff:staff(name)
     `)
     .eq("status", "confirmed")
     .eq("qr_verified", false)
@@ -96,67 +98,78 @@ export async function GET(req: NextRequest) {
     try {
       const salon = booking.salon as any;
       const service = booking.service as any;
+      const staff = booking.staff as any;
       const salonName = salon?.name ?? "the salon";
       const serviceName = service?.name ?? "your service";
+      const staffName = staff?.name ? ` with ${staff.name}` : "";
+
       const apptDate = buildAppointmentDate(booking.booking_date, booking.time_slot);
       const diffMs = apptDate.getTime() - now.getTime();
       const diffMins = diffMs / 60000;
 
-      // ── 1. REMINDER: appointment is 90–195 minutes away (1.5 – 3.25 hrs)
-      if (diffMins >= 90 && diffMins <= 195) {
+      const bookingDateFmt = new Date(booking.booking_date + "T00:00:00").toLocaleDateString("en-IN", {
+        weekday: "short", day: "numeric", month: "short",
+      });
+
+      // ── 1. REMINDER: appointment is 90–195 minutes away (1.5 – 3.25 hrs) ──
+      // Use reminder_sent DB flag to prevent duplicates (reliable)
+      if (diffMins >= 90 && diffMins <= 195 && !booking.reminder_sent) {
         const hoursAway = Math.round(diffMins / 60);
 
-        // Check if reminder already sent (avoid duplicates)
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", booking.user_id)
-          .eq("type", "booking_reminder")
-          .ilike("message", `%${booking.booking_id}%`)
-          .maybeSingle();
+        await supabase.from("notifications").insert({
+          user_id: booking.user_id,
+          type: "booking_reminder",
+          title: `⏰ Salon appointment in ~${hoursAway} hour${hoursAway !== 1 ? "s" : ""}!`,
+          message: `Don't forget! You have ${serviceName} at ${salonName} today at ${booking.time_slot}${staffName}. Show your QR code at reception. (Booking: ${booking.booking_id})`,
+          link: "/dashboard/bookings",
+          is_read: false,
+        });
 
-        if (!existing) {
-          await supabase.from("notifications").insert({
-            user_id: booking.user_id,
-            type: "booking_reminder",
-            title: `⏰ Your salon appointment is in ~${hoursAway} hour${hoursAway !== 1 ? "s" : ""}!`,
-            message: `Don't forget! You have ${serviceName} at ${salonName} today at ${booking.time_slot}. Show your QR code at the reception. (Booking: ${booking.booking_id})`,
-            link: "/dashboard/bookings",
-            is_read: false,
-          });
-          stats.reminders++;
-        }
+        // Mark as sent in DB
+        await supabase
+          .from("bookings")
+          .update({ reminder_sent: true })
+          .eq("id", booking.id);
+
+        stats.reminders++;
       }
 
-      // ── 2. NO-SHOW: appointment was > 45 min ago and still unscanned
-      if (diffMins < -45) {
-        // Check if no-show already sent
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", booking.user_id)
-          .eq("type", "no_show_warning")
-          .ilike("message", `%${booking.booking_id}%`)
-          .maybeSingle();
+      // ── 2. NO-SHOW: appointment was >45 min ago and QR still unscanned ────
+      // Use noshow_sent DB flag to prevent duplicates
+      if (diffMins < -45 && !booking.noshow_sent) {
+        // Notify user
+        await supabase.from("notifications").insert({
+          user_id: booking.user_id,
+          type: "no_show_warning",
+          title: "😔 You missed your salon appointment",
+          message: `It looks like you didn't make it to ${salonName} for ${serviceName} at ${booking.time_slot} on ${bookingDateFmt}. Your QR code was not scanned. Please contact the salon if this is a mistake. (Booking: ${booking.booking_id})`,
+          link: "/dashboard/bookings",
+          is_read: false,
+        });
 
-        if (!existing) {
+        // Notify salon owner too
+        if (salon?.owner_id) {
           await supabase.from("notifications").insert({
-            user_id: booking.user_id,
+            user_id: salon.owner_id,
             type: "no_show_warning",
-            title: "😔 You missed your salon appointment",
-            message: `It looks like you didn't make it to ${salonName} for ${serviceName} at ${booking.time_slot}. Your QR code was not scanned. Please contact the salon if this is a mistake. (Booking: ${booking.booking_id})`,
-            link: "/dashboard/bookings",
+            title: `⚠️ No-Show: Booking ${booking.booking_id}`,
+            message: `A customer did not arrive for ${serviceName} at ${booking.time_slot} on ${bookingDateFmt}. The booking has been marked as cancelled (no-show).`,
+            link: "/salon-owner/dashboard",
             is_read: false,
           });
-
-          // Also update booking status to cancelled (no-show)
-          await supabase
-            .from("bookings")
-            .update({ status: "cancelled", cancellation_reason: "No-show: customer did not arrive" })
-            .eq("id", booking.id);
-
-          stats.noShows++;
         }
+
+        // Mark as no-show in DB and cancel the booking
+        await supabase
+          .from("bookings")
+          .update({
+            status: "cancelled",
+            cancellation_reason: "No-show: customer did not arrive",
+            noshow_sent: true,
+          })
+          .eq("id", booking.id);
+
+        stats.noShows++;
       }
     } catch (e) {
       console.error(`Cron: error processing booking ${booking.id}`, e);

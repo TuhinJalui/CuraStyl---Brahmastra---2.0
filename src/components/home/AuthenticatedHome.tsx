@@ -299,7 +299,7 @@ export default function AuthenticatedHome() {
                 <p className="text-sm text-white/50">Manage your appointments</p>
               </div>
               {bookings.length > 0 && (
-                <Link href="/salons">
+                <Link href="/dashboard/bookings">
                   <Button variant="ghost" size="sm" className="gap-2">
                     View All <ArrowRight className="w-4 h-4" />
                   </Button>

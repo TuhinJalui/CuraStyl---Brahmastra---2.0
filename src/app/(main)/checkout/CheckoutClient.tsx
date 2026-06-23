@@ -31,9 +31,16 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CheckoutClient() {
-  const { profile } = useAuth();
+  const { profile, isSalonOwner } = useAuth();
   const params = useSearchParams();
   const router = useRouter();
+
+  useEffect(() => {
+    if (profile && isSalonOwner) {
+      toast.error("Salon owners are not allowed to book appointments.");
+      router.replace("/salon-owner/dashboard");
+    }
+  }, [profile, isSalonOwner, router]);
 
   const bookingId = params.get("bookingId") ?? "";
   const salonId = params.get("salonId") ?? "";

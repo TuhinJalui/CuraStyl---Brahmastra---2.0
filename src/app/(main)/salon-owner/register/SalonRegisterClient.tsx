@@ -36,20 +36,20 @@ const PLANS = {
     name: "Free",        price: 0,    emoji: "🆓", color: "gray",
     services: 5,         staff: 3,    photos: 3,
     desc: "Perfect to get started",
-    features: ["5 Services", "3 Staff Members", "3 Gallery Photos", "Basic Analytics", "QR Check-in"],
+    features: ["5 Services", "3 Staff Members", "3 Gallery Photos", "Basic Analytics", "QR Check-in", "All Payment Methods"],
   },
   premium: {
     name: "Premium",     price: 999,  emoji: "⭐", color: "purple",
     services: 20,        staff: 10,   photos: 10,
     desc: "For growing salons",
-    features: ["20 Services", "10 Staff Members", "10 Gallery Photos", "Advanced Analytics", "Featured Listing", "Priority Support"],
+    features: ["20 Services", "10 Staff Members", "10 Gallery Photos", "Advanced Analytics", "Featured Listing 🌟", "Priority Search Ranking", "Custom Booking Page URL", "Email Priority Support"],
     popular: true,
   },
   ultra: {
     name: "Ultra Premium", price: 2499, emoji: "👑", color: "gold",
     services: Infinity,  staff: Infinity, photos: 30,
     desc: "Maximum growth & visibility",
-    features: ["Unlimited Services", "Unlimited Staff", "30 Gallery Photos", "Full Analytics + Export", "AI Recommendations", "Priority Featured Listing", "24/7 Support"],
+    features: ["Unlimited Services", "Unlimited Staff", "30 Gallery Photos", "Full Analytics + Export", "AI Style Recommendations ✨", "WhatsApp Reminders 📱", "Priority Featured Listing", "Revenue Export Reports", "24/7 Priority Support"],
   },
 };
 

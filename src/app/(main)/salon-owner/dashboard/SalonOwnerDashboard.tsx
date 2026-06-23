@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, Calendar, Scissors, Users, BarChart2,
   Plus, Edit2, Trash2, CheckCircle, TrendingUp,
@@ -52,9 +53,9 @@ const SERVICE_CATEGORIES = ["Haircut", "Hair Color", "Hair Treatment", "Facial",
 const STAFF_ROLES = ["Senior Stylist", "Junior Stylist", "Colorist", "Makeup Artist", "Nail Technician", "Therapist", "Receptionist", "Manager"];
 
 const PLAN_CONFIG = {
-  free:    { name: "Free",          price: 0,    emoji: "🆓", color: "gray",   services: 5,        staff: 3,        photos: 3,  featured: false, ai: false, analytics: "basic",    support: "Community" },
-  premium: { name: "Premium",       price: 999,  emoji: "⭐", color: "purple", services: 20,       staff: 10,       photos: 10, featured: true,  ai: false, analytics: "advanced", support: "Email" },
-  ultra:   { name: "Ultra Premium", price: 2499, emoji: "👑", color: "gold",   services: Infinity, staff: Infinity, photos: 30, featured: true,  ai: true,  analytics: "full",     support: "Priority 24/7"  },
+  free:    { name: "Free",          price: 0,    emoji: "🆓", color: "gray",   services: 5,        staff: 3,        photos: 3,  featured: false, ai: false, analytics: "basic",    support: "Community",    priorityRanking: false, customBookingUrl: false, whatsappReminders: false, exportReports: false },
+  premium: { name: "Premium",       price: 999,  emoji: "⭐", color: "purple", services: 20,       staff: 10,       photos: 10, featured: true,  ai: false, analytics: "advanced", support: "Email Priority", priorityRanking: true,  customBookingUrl: true,  whatsappReminders: false, exportReports: false },
+  ultra:   { name: "Ultra Premium", price: 2499, emoji: "👑", color: "gold",   services: Infinity, staff: Infinity, photos: 30, featured: true,  ai: true,  analytics: "full",     support: "Priority 24/7", priorityRanking: true,  customBookingUrl: true,  whatsappReminders: true,  exportReports: true  },
 };
 
 const statusColors: Record<string, "success" | "secondary" | "destructive" | "warning"> = {
@@ -139,6 +140,7 @@ const tabs = [
 
 export default function SalonOwnerDashboard() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
 
   // Salon
@@ -177,6 +179,7 @@ export default function SalonOwnerDashboard() {
   const [salonForm, setSalonForm] = useState<Partial<SalonData>>({});
   const [salonSaving, setSalonSaving] = useState(false);
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string; is_closed: boolean }>>({});
+  const [galleryImagesText, setGalleryImagesText] = useState("");
 
   // Plan
   const [planData, setPlanData] = useState<any>(null);
@@ -197,10 +200,14 @@ export default function SalonOwnerDashboard() {
         setSalonData(data.salon);
         setSalonForm(data.salon);
         setWorkingHours(data.salon.working_hours ?? {});
+        setGalleryImagesText((data.salon.gallery_images ?? []).join("\n"));
+      } else {
+        // If owner role but no salon in DB, redirect to register
+        router.replace("/salon-owner/register");
       }
     } catch (e) { console.error(e); }
     finally { setSalonLoading(false); }
-  }, [profile]);
+  }, [profile, router]);
 
   useEffect(() => { fetchSalon(); }, [fetchSalon]);
 
@@ -403,14 +410,26 @@ export default function SalonOwnerDashboard() {
   const handleSaveSalon = async () => {
     setSalonSaving(true);
     try {
+      const gallery = galleryImagesText
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, planInfo.photos);
+
       const res = await fetch("/api/salon-owner/salon", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...salonForm, working_hours: workingHours }),
+        body: JSON.stringify({
+          ...salonForm,
+          working_hours: workingHours,
+          gallery_images: gallery
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSalonData(data.salon);
+      setSalonForm(data.salon);
+      setGalleryImagesText((data.salon.gallery_images ?? []).join("\n"));
       toast.success("Salon info saved! ✅");
     } catch (err: any) { toast.error(err.message); }
     finally { setSalonSaving(false); }
@@ -764,7 +783,7 @@ export default function SalonOwnerDashboard() {
                           <Input value={salonForm.website ?? ""} onChange={e => setSalonForm(p => ({ ...p, website: e.target.value }))} placeholder="https://yoursalon.com" />
                         </div>
                         <div>
-                          <label className="block text-xs text-white/50 mb-1.5 flex items-center gap-1"><Instagram className="w-3 h-3" />Instagram</label>
+                          <label className="block text-xs text-white/50 mb-1.5 flex items-center gap-1"><InstagramIcon className="w-3 h-3" />Instagram</label>
                           <Input value={(salonForm as any).instagram ?? ""} onChange={e => setSalonForm(p => ({ ...p, instagram: e.target.value }))} placeholder="@yoursalon" />
                         </div>
                       </div>
@@ -780,8 +799,8 @@ export default function SalonOwnerDashboard() {
                       </div>
                       <div>
                         <label className="block text-xs text-white/50 mb-1.5">Gallery Image URLs (one per line, max {planInfo.photos})</label>
-                        <textarea rows={4} value={(salonForm.gallery_images ?? []).join("\n")} onChange={e => setSalonForm(p => ({ ...p, gallery_images: e.target.value.split("\n").filter(Boolean).slice(0, planInfo.photos) }))} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" className="w-full bg-white/5 border border-purple-500/20 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-purple-500/50 transition-colors placeholder:text-white/30 resize-none font-mono" />
-                        <p className="text-xs text-white/30 mt-1">{(salonForm.gallery_images ?? []).length}/{planInfo.photos} photos used</p>
+                        <textarea rows={4} value={galleryImagesText} onChange={e => setGalleryImagesText(e.target.value)} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" className="w-full bg-white/5 border border-purple-500/20 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-purple-500/50 transition-colors placeholder:text-white/30 resize-none font-mono" />
+                        <p className="text-xs text-white/30 mt-1">{galleryImagesText.split("\n").filter(Boolean).length}/{planInfo.photos} photos used</p>
                       </div>
                     </div>
 
@@ -1057,12 +1076,16 @@ export default function SalonOwnerDashboard() {
                         </p>
                         <div className="mt-4 space-y-2">
                           {[
-                            { icon: Scissors, text: `${plan.services === Infinity ? "Unlimited" : plan.services} Services` },
-                            { icon: Users, text: `${plan.staff === Infinity ? "Unlimited" : plan.staff} Staff Members` },
-                            { icon: ImageIcon, text: `${plan.photos} Gallery Photos` },
-                            { icon: BarChart2, text: `${plan.analytics === "full" ? "Full" : plan.analytics === "advanced" ? "Advanced" : "Basic"} Analytics` },
-                            { icon: Star, text: plan.featured ? "Featured Listing" : "Standard Listing", ok: plan.featured },
-                            { icon: Sparkles, text: "AI Recommendations", ok: plan.ai },
+                            { icon: Scissors,    text: `${plan.services === Infinity ? "Unlimited" : plan.services} Services` },
+                            { icon: Users,       text: `${plan.staff === Infinity ? "Unlimited" : plan.staff} Staff Members` },
+                            { icon: ImageIcon,   text: `${plan.photos} Gallery Photos` },
+                            { icon: BarChart2,   text: `${plan.analytics === "full" ? "Full + Export" : plan.analytics === "advanced" ? "Advanced" : "Basic"} Analytics` },
+                            { icon: Star,        text: plan.featured ? "✓ Featured Listing" : "Standard Listing", ok: plan.featured },
+                            { icon: TrendingUp,  text: plan.priorityRanking ? "✓ Priority Search Ranking" : "Standard Ranking", ok: plan.priorityRanking },
+                            { icon: QrCode,      text: plan.customBookingUrl ? "✓ Custom Booking Page URL" : "Default URL", ok: plan.customBookingUrl },
+                            { icon: Sparkles,    text: "AI Style Recommendations", ok: plan.ai },
+                            { icon: Banknote,    text: plan.whatsappReminders ? "✓ WhatsApp Reminders" : "Email Only", ok: plan.whatsappReminders },
+                            { icon: ChevronDown, text: plan.exportReports ? "✓ Export Revenue Reports" : "No Export", ok: plan.exportReports },
                             { icon: ShieldCheck, text: `${plan.support} Support` },
                           ].map(({ icon: Icon, text, ok }) => (
                             <div key={text} className={cn("flex items-center gap-2 text-sm", ok === false ? "opacity-30" : "")}>
@@ -1093,7 +1116,7 @@ export default function SalonOwnerDashboard() {
                 {/* Feature comparison note */}
                 <div className="glass-card p-4 flex items-start gap-3">
                   <Info className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-white/50">All plans include: QR code check-in, booking management, customer notifications, cash & online payment support, and real-time dashboard. Upgrade anytime to unlock more features.</p>
+                   <p className="text-sm text-white/50">All plans include: QR code check-in, booking management, customer notifications (reminder + no-show + confirmed), cash &amp; online payment support, and real-time dashboard. Upgrade to <strong className="text-purple-300">Premium</strong> for featured listing + priority ranking + custom booking URL. <strong className="text-amber-300">Ultra</strong> adds AI recommendations, WhatsApp reminders, and full revenue exports.</p>
                 </div>
               </div>
             )}
