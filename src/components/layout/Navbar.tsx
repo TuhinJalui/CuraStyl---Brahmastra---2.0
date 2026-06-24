@@ -218,7 +218,20 @@ export default function Navbar() {
                 >
                   <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-purple-500/30 group-hover:ring-purple-500/60 transition-all duration-300">
                     {profile?.avatar_url ? (
-                      <Image src={profile.avatar_url} alt={profile.full_name || "Profile"} width={36} height={36} className="object-cover w-full h-full" />
+                      <Image 
+                        src={profile.avatar_url} 
+                        alt={profile.full_name || "Profile"} 
+                        width={36} 
+                        height={36} 
+                        className="object-cover w-full h-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const parent = (e.target as HTMLImageElement).parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">${initials}</div>`;
+                          }
+                        }}
+                      />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
                         {initials}

@@ -58,38 +58,46 @@ export function useNotifications() {
   })();
 
   const fetchNotifications = useCallback(async () => {
-    if (!profile || !supabase) return;
+    if (!profile?.id || !supabase) return;
+    
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(20);
       
-      if (data) {
+      if (error) {
+        console.error("Error fetching notifications:", error);
+        // Table might not exist yet
+        if (!store.isLoaded) {
+          store.setNotifications([], 0);
+        }
+      } else if (data) {
         const unreadCount = data.filter((n: any) => !n.is_read).length;
         store.setNotifications(data as Notification[], unreadCount);
       }
-    } catch {
+    } catch (err) {
+      console.error("Notifications fetch exception:", err);
       // Table might not exist yet
       if (!store.isLoaded) {
         store.setNotifications([], 0);
       }
     }
-  }, [profile, supabase, store]);
+  }, [profile?.id, supabase, store]);
 
   // Initial fetch
   useEffect(() => {
-    if (profile && !store.isLoaded) {
+    if (profile?.id && !store.isLoaded) {
       fetchNotifications();
     }
-  }, [profile, store.isLoaded, fetchNotifications]);
+  }, [profile?.id, store.isLoaded, fetchNotifications]);
 
   // 🔥 FREE POLLING (No Realtime subscription needed!)
   // Checks for new notifications every 15 seconds
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
 
     // Poll every 15 seconds for new notifications
     const pollInterval = setInterval(() => {
@@ -99,27 +107,39 @@ export function useNotifications() {
     return () => {
       clearInterval(pollInterval);
     };
-  }, [profile, fetchNotifications]);
+  }, [profile?.id, fetchNotifications]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
-    if (!profile || !supabase) return;
+    if (!profile?.id || !supabase) return;
+    
     store.markRead(notificationId);
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", notificationId)
-      .eq("user_id", profile.id);
-  }, [profile, supabase, store]);
+    
+    try {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", notificationId)
+        .eq("user_id", profile.id);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  }, [profile?.id, supabase, store]);
 
   const markAllAsRead = useCallback(async () => {
-    if (!profile || !supabase) return;
+    if (!profile?.id || !supabase) return;
+    
     store.markAllRead();
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", profile.id)
-      .eq("is_read", false);
-  }, [profile, supabase, store]);
+    
+    try {
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", profile.id)
+        .eq("is_read", false);
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  }, [profile?.id, supabase, store]);
 
   return {
     notifications: store.notifications,

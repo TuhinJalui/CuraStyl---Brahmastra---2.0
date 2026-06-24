@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MapPin, Search, Loader2, X } from "lucide-react";
+import { MapPin, Search, Loader2, X, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 interface LocationPickerProps {
   onLocationSelect: (location: { address: string; lat: number; lng: number }) => void;
@@ -12,113 +11,149 @@ interface LocationPickerProps {
 }
 
 export default function LocationPicker({ onLocationSelect, initialLocation }: LocationPickerProps) {
-  const [map, setMap] = useState<any>(null);
-  const [marker, setMarker] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ address: string; lat: number; lng: number } | null>(
     initialLocation || null
   );
+  
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
   const mapInitialized = useRef(false);
 
-  // Load Leaflet dynamically
+  // Initialize Leaflet map
   useEffect(() => {
     let mounted = true;
 
-    const loadLeaflet = async () => {
+    const initMap = async () => {
       if (typeof window === "undefined" || !mapRef.current || mapInitialized.current) {
         return;
       }
 
-      // Import Leaflet CSS
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      if (!document.querySelector(`link[href="${link.href}"]`)) {
-        document.head.appendChild(link);
-      }
-
-      const L = await import("leaflet");
-      
-      if (!mounted || !mapRef.current || mapInitialized.current) return;
-
-      // Fix for default marker icons
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
       try {
-        const mapInstance = L.map(mapRef.current, {
-          center: [initialLocation?.lat || 19.0760, initialLocation?.lng || 72.8777],
-          zoom: 13,
-          scrollWheelZoom: true,
+        // Import Leaflet CSS
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        if (!document.querySelector(`link[href="${link.href}"]`)) {
+          document.head.appendChild(link);
+        }
+
+        const L = await import("leaflet");
+
+        if (!mounted || !mapRef.current || mapInitialized.current) return;
+
+        // Fix default marker icon
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
+
+        // Create map centered on Mumbai by default
+        const defaultLat = initialLocation?.lat || 19.0760;
+        const defaultLng = initialLocation?.lng || 72.8777;
+        const defaultZoom = initialLocation ? 15 : 11;
+
+        const map = L.map(mapRef.current, {
+          center: [defaultLat, defaultLng],
+          zoom: defaultZoom,
           zoomControl: true,
+          scrollWheelZoom: true,
+          dragging: true,
+          touchZoom: true,
+          doubleClickZoom: true,
         });
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          attribution: '&copy; OpenStreetMap contributors',
           maxZoom: 19,
-        }).addTo(mapInstance);
+        }).addTo(map);
 
-        // Force map to recalculate size
-        setTimeout(() => {
-          if (mapInstance && mounted) {
-            mapInstance.invalidateSize();
-          }
-        }, 100);
+        // Force proper rendering with multiple invalidateSize calls
+        setTimeout(() => map.invalidateSize(), 100);
+        setTimeout(() => map.invalidateSize(), 300);
+        setTimeout(() => map.invalidateSize(), 500);
 
-        // Add click handler to set marker
-        mapInstance.on("click", (e: any) => {
+        // Add marker if initial location exists
+        if (initialLocation) {
+          const marker = L.marker([initialLocation.lat, initialLocation.lng], {
+            draggable: true,
+          }).addTo(map);
+
+          // Handle marker drag
+          marker.on("dragend", async function () {
+            const position = marker.getLatLng();
+            await reverseGeocode(position.lat, position.lng);
+          });
+
+          markerRef.current = marker;
+        }
+
+        // Click on map to place/move marker
+        map.on("click", async (e: any) => {
           const { lat, lng } = e.latlng;
-          setMarkerPosition(mapInstance, lat, lng);
-          reverseGeocode(lat, lng);
+          
+          if (markerRef.current) {
+            // Move existing marker
+            markerRef.current.setLatLng([lat, lng]);
+          } else {
+            // Create new marker
+            const marker = L.marker([lat, lng], {
+              draggable: true,
+            }).addTo(map);
+
+            marker.on("dragend", async function () {
+              const position = marker.getLatLng();
+              await reverseGeocode(position.lat, position.lng);
+            });
+
+            markerRef.current = marker;
+          }
+
+          await reverseGeocode(lat, lng);
         });
 
-        // Add initial marker if provided
-        if (initialLocation) {
-          setMarkerPosition(mapInstance, initialLocation.lat, initialLocation.lng);
-        }
+        mapInstanceRef.current = map;
+        mapInitialized.current = true;
 
-        if (mounted) {
-          setMap(mapInstance);
-          mapInitialized.current = true;
-        }
       } catch (error) {
         console.error("Error initializing map:", error);
       }
     };
 
-    loadLeaflet();
+    const timer = setTimeout(() => {
+      initMap();
+    }, 100);
 
     return () => {
       mounted = false;
+      clearTimeout(timer);
+      
+      // Cleanup
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+          mapInitialized.current = false;
+        } catch (e) {
+          console.error("Map cleanup error:", e);
+        }
+      }
     };
   }, []);
 
-  const setMarkerPosition = async (mapInstance: any, lat: number, lng: number) => {
-    const L = await import("leaflet");
-    
-    if (marker) {
-      marker.setLatLng([lat, lng]);
-    } else {
-      const newMarker = L.marker([lat, lng], {
-        draggable: true,
-      }).addTo(mapInstance);
-      
-      newMarker.on("dragend", function() {
-        const position = newMarker.getLatLng();
-        reverseGeocode(position.lat, position.lng);
-      });
-      
-      setMarker(newMarker);
+  // Update marker when selectedLocation changes externally
+  useEffect(() => {
+    if (selectedLocation && mapInstanceRef.current && markerRef.current) {
+      const L = require("leaflet");
+      markerRef.current.setLatLng([selectedLocation.lat, selectedLocation.lng]);
+      mapInstanceRef.current.setView([selectedLocation.lat, selectedLocation.lng], 15);
     }
-    mapInstance.setView([lat, lng], 15);
-  };
+  }, [selectedLocation]);
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
@@ -126,11 +161,12 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
       );
       const data = await response.json();
+      
       if (data.display_name) {
         const location = {
           address: data.display_name,
           lat,
-          lng
+          lng,
         };
         setSelectedLocation(location);
         onLocationSelect(location);
@@ -144,12 +180,17 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setSearchResults([]);
+    
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=in`
       );
       const data = await response.json();
-      setSearchResults(data);
+      
+      if (data && data.length > 0) {
+        setSearchResults(data);
+      }
     } catch (error) {
       console.error("Search failed:", error);
     } finally {
@@ -157,36 +198,76 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
     }
   };
 
-  const selectSearchResult = (result: any) => {
+  const selectSearchResult = async (result: any) => {
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
     const address = result.display_name;
-
-    if (map) {
-      setMarkerPosition(map, lat, lng);
-    }
 
     const location = { address, lat, lng };
     setSelectedLocation(location);
     onLocationSelect(location);
     setSearchResults([]);
     setSearchQuery("");
+
+    // Update map and marker
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([lat, lng], 15);
+      
+      const L = await import("leaflet");
+      
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng]);
+      } else {
+        const marker = L.marker([lat, lng], {
+          draggable: true,
+        }).addTo(mapInstanceRef.current);
+
+        marker.on("dragend", async function () {
+          const position = marker.getLatLng();
+          await reverseGeocode(position.lat, position.lng);
+        });
+
+        markerRef.current = marker;
+      }
+    }
   };
 
   const handleLocateMe = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
-          if (map) {
-            setMarkerPosition(map, latitude, longitude);
-            reverseGeocode(latitude, longitude);
+          await reverseGeocode(latitude, longitude);
+          
+          // Update map and marker
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.setView([latitude, longitude], 15);
+            
+            const L = await import("leaflet");
+            
+            if (markerRef.current) {
+              markerRef.current.setLatLng([latitude, longitude]);
+            } else {
+              const marker = L.marker([latitude, longitude], {
+                draggable: true,
+              }).addTo(mapInstanceRef.current);
+
+              marker.on("dragend", async function () {
+                const position = marker.getLatLng();
+                await reverseGeocode(position.lat, position.lng);
+              });
+
+              markerRef.current = marker;
+            }
           }
         },
         (error) => {
           console.error("Geolocation error:", error);
+          alert("Unable to get your location. Please search manually.");
         }
       );
+    } else {
+      alert("Geolocation is not supported by your browser.");
     }
   };
 
@@ -209,7 +290,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
             {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
           </Button>
           <Button onClick={handleLocateMe} variant="outline" size="sm">
-            <MapPin className="w-4 h-4 mr-1" /> Locate Me
+            <Navigation className="w-4 h-4 mr-1" /> Locate Me
           </Button>
         </div>
 
@@ -246,9 +327,9 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
               size="sm"
               onClick={() => {
                 setSelectedLocation(null);
-                if (marker && map) {
-                  map.removeLayer(marker);
-                  setMarker(null);
+                if (markerRef.current && mapInstanceRef.current) {
+                  mapInstanceRef.current.removeLayer(markerRef.current);
+                  markerRef.current = null;
                 }
               }}
             >
@@ -258,18 +339,20 @@ export default function LocationPicker({ onLocationSelect, initialLocation }: Lo
         </div>
       )}
 
-      {/* Map Container */}
+      {/* Map Container - Interactive Leaflet Map */}
       <div
         ref={mapRef}
         className="w-full h-80 rounded-xl border border-white/10 overflow-hidden bg-[#1a0a2e]"
+        style={{ minHeight: '320px', zIndex: 0 }}
       />
 
       {/* Instructions */}
       <div className="text-xs text-white/40 space-y-1">
-        <p>• Click anywhere on the map to set your salon location</p>
-        <p>• Drag the marker to adjust the position</p>
-        <p>• Use the search bar to find a specific address</p>
-        <p>• Click "Locate Me" to use your current location</p>
+        <p>• Search for your salon's address using the search bar above</p>
+        <p>• Click "Locate Me" to use your current GPS location</p>
+        <p>• Click anywhere on the map to place a marker at that location</p>
+        <p>• Drag the marker to fine-tune your exact position</p>
+        <p>• You can also pan/zoom the map independently</p>
       </div>
     </div>
   );

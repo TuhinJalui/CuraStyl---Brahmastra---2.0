@@ -62,7 +62,7 @@ function ImageCarousel({ images }: { images: any[] }) {
             onClick={handlePrev}
             className="px-3 py-1.5 text-xs rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white font-medium"
           >
-            ← Prev
+            â† Prev
           </button>
           <div className="text-white/50 text-xs font-medium min-w-[40px] text-center">
             {currentIndex + 1} / {images.length}
@@ -71,7 +71,7 @@ function ImageCarousel({ images }: { images: any[] }) {
             onClick={handleNext}
             className="px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 text-white font-medium"
           >
-            Next →
+            Next â†’
           </button>
         </div>
       </div>
@@ -114,7 +114,7 @@ function extractCTA(content: string): { text: string; cta?: { label: string; lin
   return {
     text: textWithoutCTA,
     cta: linkMatch ? {
-      label: labelMatch ? labelMatch[1].trim() : 'Try This Look 💇‍♀️',
+      label: labelMatch ? labelMatch[1].trim() : 'Try This Look ðŸ’‡â€â™€ï¸',
       link: linkMatch[1].trim(),
     } : undefined,
   };
@@ -146,10 +146,10 @@ function formatAssistantReply(text: string) {
     // collapse whitespace
     s = s.replace(/\s+/g, ' ');
     // ensure space after common sentence punctuation
-    s = s.replace(/([.!?])([A-Za-z0-9"'“‘`\(\[])/g, '$1 $2');
-    s = s.replace(/([,:;])([A-Za-z0-9"'“‘`\(\[])/g, '$1 $2');
+    s = s.replace(/([.!?])([A-Za-z0-9"'â€œâ€˜`\(\[])/g, '$1 $2');
+    s = s.replace(/([,:;])([A-Za-z0-9"'â€œâ€˜`\(\[])/g, '$1 $2');
     // put spaces around em-dash if missing
-    s = s.replace(/([^\s])—([^\s])/g, '$1 — $2');
+    s = s.replace(/([^\s])â€”([^\s])/g, '$1 â€” $2');
     // separate lowercase->Uppercase joins (e.g. "I'mGlamAI" -> "I'm Glam AI")
     s = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
     // collapse repeated spaces again and trim
@@ -173,12 +173,12 @@ function formatAssistantReply(text: string) {
 
 const WELCOME: AIMessage = {
   role: "assistant",
-  content: "Hi! I'm AuraAI — your personal beauty advisor for Mumbai. Ask me anything.",
+  content: "Hi! I'm AuraAI â€” your personal beauty advisor for Mumbai. Ask me anything.",
   timestamp: new Date(),
 };
 
 const SUGGESTIONS = [
-  "Suggest bridal makeup salons under ₹5000 near Bandra",
+  "Suggest bridal makeup salons under â‚¹5000 near Bandra",
   "Best haircut for curly hair in Andheri?",
   "Recommend a spa package with 4.8+ rating",
   "What is the best treatment for damaged hair?",
@@ -718,24 +718,30 @@ export default function AIAssistantClient() {
 
   return (
     <div className="min-h-screen gradient-hero pt-16 flex flex-col">
+      {/* Top bar */}
       <div className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-xl sticky top-16 z-50">
-          <div className="max-w-full lg:max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between">
+        <div className="max-w-full px-3 sm:px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden ring-2 ring-purple-500/30 shrink-0">
               <img src="/images/aura-avatar.jpg" alt="Aura" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-white text-sm sm:text-base truncate">Aura - GlamBot</p>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs text-white/50">AI</span></div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-white/50">AI</span>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative hidden sm:block">
-              <button onClick={() => setShowFeatures((s) => !s)} className="flex items-center gap-2 bg-white/5 hover:bg-white/8 text-white/90 px-3 py-2 rounded-lg text-sm">
-                  Features
+              <button
+                onClick={() => setShowFeatures((s) => !s)}
+                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white/90 px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                Features
               </button>
-              {/* Full-screen (below header) features modal */}
               {showFeatures && (
                 <div className="fixed left-0 right-0 top-16 bottom-0 z-40 flex items-start justify-center pointer-events-auto">
                   <div className="absolute inset-0 bg-black/60" onClick={() => setShowFeatures(false)} />
@@ -748,135 +754,158 @@ export default function AIAssistantClient() {
               )}
             </div>
 
-
-            <div className="flex items-center gap-2">
-              <select
-                value={personality}
-                onChange={(e) => setPersonality(e.target.value)}
-                className="bg-gradient-to-r from-purple-800 to-purple-900 text-white text-xs rounded px-2 py-1 border border-purple-700/40 focus:outline-none focus:ring-2 focus:ring-purple-600"
-              >
-                <option value="professional" style={{ backgroundColor: '#2b0756', color: '#fff' }}>Professional</option>
-                <option value="friendly" style={{ backgroundColor: '#2b0756', color: '#fff' }}>Friendly</option>
-              </select>
-             
-            </div>
-
+            <select
+              value={personality}
+              onChange={(e) => setPersonality(e.target.value)}
+              className="bg-gradient-to-r from-purple-800 to-purple-900 text-white text-xs rounded px-2 py-1 border border-purple-700/40 focus:outline-none focus:ring-2 focus:ring-purple-600"
+            >
+              <option value="professional" style={{ backgroundColor: '#2b0756', color: '#fff' }}>Professional</option>
+              <option value="friendly" style={{ backgroundColor: '#2b0756', color: '#fff' }}>Friendly</option>
+            </select>
           </div>
-
-      {/* Left assistant sidebar (collapsible) */}
-      
-          </div>
-      <div className={`fixed left-0 top-20 bottom-32 z-50 hidden lg:block transition-all ${sidebarOpen ? 'w-51' : 'w-14'}`}>
-        <div className="bg-[#05050a]/80 border border-white/10 rounded-lg p-3 h-full flex flex-col overflow-hidden">
-          <button onClick={() => setSidebarOpen(s => !s)} className="mb-3 p-2 rounded-lg hover:bg-white/10 text-white/70 self-end transition-all duration-200">{sidebarOpen ? '‹' : '›'}</button>
-          {sidebarOpen ? (
-            <div className="flex flex-col gap-3 overflow-auto h-full scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              <button onClick={handleNewChat} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-500/20 border border-purple-500/30 text-white/90 hover:bg-purple-600/30 transition-all duration-200"><MessageSquare className="w-4 h-4" /> New chat</button>
-              <button onClick={() => setShowGoogleSearch(s => !s)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all duration-200"><Search className="w-4 h-4" /> Search web</button>
-
-              {showGoogleSearch && (
-                <div className="px-3 pt-2">
-                  <div className="text-xs text-white/60 mb-2">Search the web (Google CSE)</div>
-                  <div className="h-64 overflow-auto rounded-lg bg-white/5 p-2 border border-white/5">
-                    <GoogleCSE />
-                  </div>
-                </div>
-              )}
-              <div className="px-3 pt-2">
-                <input value={chatSearch} onChange={(e)=>setChatSearch(e.target.value)} placeholder="Search chats..." className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/50 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all duration-200" />
-              </div>
-              <div className="mt-4 text-xs text-white/50 px-3 font-medium tracking-wide">PINNED</div>
-              <div className="px-2 space-y-1.5 overflow-auto max-h-40 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                {pinnedConversations.map((c:any,i:number)=>(
-                  <div key={c.id||i} onClick={() => {
-                    if (c.messages) {
-                      const mapped = (c.messages || []).map((m:any) => ({ role: m.role, content: m.content, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
-                      setMessages(mapped);
-                      setLanguage(c.language||'auto');
-                      setMessagesByLanguage(prev=>({...prev, [c.language||'auto']: mapped}));
-                      setCurrentConversationId(c.id || null);
-                    }
-                    setSidebarOpen(false);
-                  }} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-200 cursor-pointer group">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-sm font-semibold text-white shadow-lg shadow-purple-500/20">{(c.title||'C').slice(0,1)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white/90 truncate font-medium">{c.title}</div>
-                      <div className="text-xs text-white/50 truncate">{c.preview || (c.messages?.[c.messages.length-1]?.content || '').slice(0,60)}</div>
-                    </div>
-                    <div className="text-[10px] text-white/40">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</div>
-                    <button onClick={(e)=>{ e.stopPropagation(); if (confirm('Delete this chat?')) deleteConversation(c); }} className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-white/60 hover:text-red-400"/></button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 text-xs text-white/50 px-3 font-medium tracking-wide">RECENTS</div>
-              <div className="px-2 space-y-1.5 overflow-auto max-h-56 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                {filteredConversations.map((c:any,i:number)=>(
-                  <div key={c.id||i} onClick={() => {
-                    if (c.messages) {
-                      const mapped = (c.messages || []).map((m:any) => ({ role: m.role, content: m.content, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
-                      setMessages(mapped);
-                      setLanguage(c.language||'auto');
-                      setMessagesByLanguage(prev=>({...prev, [c.language||'auto']: mapped}));
-                      setCurrentConversationId(c.id || null);
-                    }
-                    setSidebarOpen(false);
-                  }} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10 transition-all duration-200 cursor-pointer group">
-                    <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-sm font-semibold text-white">{(c.title||'C').slice(0,1)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white/90 truncate font-medium">{c.title}</div>
-                      <div className="text-xs text-white/50 truncate">{c.preview || (c.messages?.[c.messages.length-1]?.content || '').slice(0,60)}</div>
-                    </div>
-                    <div className="text-[10px] text-white/40">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</div>
-                    <button onClick={(e)=>{ e.stopPropagation(); if (confirm('Delete this chat?')) deleteConversation(c); }} className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5 text-white/60 hover:text-red-400"/></button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-auto px-3 py-2">
-                {isLoggedIn && profile ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => router.push('/profile')} className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-purple-500/30">
-                      <img src={profile.avatar_url || '/images/aura-avatar.jpg'} alt={profile.full_name || profile.email || 'Profile'} className="w-full h-full object-cover" />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-white/90 font-medium truncate">{profile.full_name || profile.email}</div>
-                      <div className="text-xs text-white/50 truncate">{profile.role ?? ''}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => router.push('/profile')} className="px-2 py-1 text-xs text-white/60 rounded hover:bg-white/5">Profile</button>
-                      <button onClick={() => signOut()} className="px-2 py-1 text-xs text-red-400 rounded hover:bg-white/5">Sign out</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={()=>router.push('/auth/login')} className="flex items-center gap-2 text-white/70 hover:text-white/90"><LogIn className="w-4 h-4"/> Auth</button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4 mt-2">
-              <button onClick={handleNewChat} title="New chat" className="p-2 rounded hover:bg-white/5"><MessageSquare className="w-5 h-5 text-white/80" /></button>
-              <button title="Search chats" className="p-2 rounded hover:bg-white/5"><Search className="w-5 h-5 text-white/70" /></button>
-              <button title="Pinned" className="p-2 rounded hover:bg-white/5"><Pin className="w-5 h-5 text-white/70" /></button>
-              <button title="Recents" className="p-2 rounded hover:bg-white/5"><Clock className="w-5 h-5 text-white/70" /></button>
-              <div className="mt-auto p-2">
-                {isLoggedIn && profile ? (
-                  <button onClick={()=>router.push('/profile')} title={profile.full_name || profile.email} className="p-1 rounded-full overflow-hidden">
-                    <img src={profile.avatar_url || '/images/aura-avatar.jpg'} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
-                  </button>
-                ) : (
-                  <button onClick={()=>router.push('/auth/login')} title="Auth" className="p-2 rounded hover:bg-white/5"><LogIn className="w-5 h-5 text-white/70" /></button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-40">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-5">
+      {/* Body: sidebar + chat area side by side */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Left sidebar */}
+        <div className={`hidden lg:flex flex-col shrink-0 border-r border-white/10 bg-[#05050a]/90 transition-all duration-200 ${sidebarOpen ? 'w-56' : 'w-14'}`}
+          style={{ height: 'calc(100vh - 8rem)' }}
+        >
+          <div className="flex flex-col h-full overflow-hidden p-3">
+            <button
+              onClick={() => setSidebarOpen(s => !s)}
+              className="mb-3 p-2 rounded-lg hover:bg-white/10 text-white/70 self-end transition-all duration-200"
+            >
+              {sidebarOpen ? '<' : '>'}
+            </button>
+
+            {sidebarOpen ? (
+              <div className="flex flex-col gap-3 overflow-auto flex-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <button onClick={handleNewChat} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-500/20 border border-purple-500/30 text-white/90 hover:bg-purple-600/30 transition-all duration-200">
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span className="text-sm">New chat</span>
+                </button>
+                <button onClick={() => setShowGoogleSearch(s => !s)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all duration-200">
+                  <Search className="w-4 h-4 shrink-0" />
+                  <span className="text-sm">Search web</span>
+                </button>
+
+                {showGoogleSearch && (
+                  <div className="px-2 pt-1">
+                    <div className="text-xs text-white/60 mb-2">Search the web (Google CSE)</div>
+                    <div className="h-48 overflow-auto rounded-lg bg-white/5 p-2 border border-white/5">
+                      <GoogleCSE />
+                    </div>
+                  </div>
+                )}
+
+                <div className="px-1">
+                  <input
+                    value={chatSearch}
+                    onChange={(e) => setChatSearch(e.target.value)}
+                    placeholder="Search chats..."
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/50 focus:outline-none focus:border-purple-500/50 transition-all"
+                  />
+                </div>
+
+                <div className="text-xs text-white/50 px-2 font-medium tracking-wide uppercase mt-2">Pinned</div>
+                <div className="px-1 space-y-1 overflow-auto max-h-32 scrollbar-thin scrollbar-thumb-white/10">
+                  {pinnedConversations.map((c: any, i: number) => (
+                    <div key={c.id || i} onClick={() => {
+                      if (c.messages) {
+                        const mapped = (c.messages || []).map((m: any) => ({ role: m.role, content: m.content, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
+                        setMessages(mapped);
+                        setLanguage(c.language || 'auto');
+                        setMessagesByLanguage(prev => ({ ...prev, [c.language || 'auto']: mapped }));
+                        setCurrentConversationId(c.id || null);
+                      }
+                    }} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/10 transition-all cursor-pointer group">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-xs font-semibold text-white shrink-0">
+                        {(c.title || 'C').slice(0, 1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white/90 truncate font-medium">{c.title}</div>
+                        <div className="text-[10px] text-white/40">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) deleteConversation(c); }} className="p-1 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100">
+                        <Trash2 className="w-3 h-3 text-red-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-xs text-white/50 px-2 font-medium tracking-wide uppercase">Recents</div>
+                <div className="px-1 space-y-1 overflow-auto flex-1 scrollbar-thin scrollbar-thumb-white/10">
+                  {filteredConversations.map((c: any, i: number) => (
+                    <div key={c.id || i} onClick={() => {
+                      if (c.messages) {
+                        const mapped = (c.messages || []).map((m: any) => ({ role: m.role, content: m.content, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
+                        setMessages(mapped);
+                        setLanguage(c.language || 'auto');
+                        setMessagesByLanguage(prev => ({ ...prev, [c.language || 'auto']: mapped }));
+                        setCurrentConversationId(c.id || null);
+                      }
+                    }} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/10 transition-all cursor-pointer group">
+                      <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-xs font-semibold text-white shrink-0">
+                        {(c.title || 'C').slice(0, 1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white/90 truncate font-medium">{c.title}</div>
+                        <div className="text-[10px] text-white/40">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) deleteConversation(c); }} className="p-1 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100">
+                        <Trash2 className="w-3 h-3 text-red-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* User profile at bottom */}
+                <div className="mt-auto pt-3 border-t border-white/10">
+                  {isLoggedIn && profile ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => router.push('/profile')} className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-purple-500/30 shrink-0">
+                        <img src={profile.avatar_url || '/images/aura-avatar.jpg'} alt="avatar" className="w-full h-full object-cover" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white/90 font-medium truncate">{profile.full_name || profile.email}</div>
+                      </div>
+                      <button onClick={() => signOut()} className="text-xs text-red-400 hover:text-red-300 px-1">Out</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => router.push('/auth/login')} className="flex items-center gap-2 text-white/70 hover:text-white/90 text-sm">
+                      <LogIn className="w-4 h-4" /> Sign in
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 mt-2">
+                <button onClick={handleNewChat} title="New chat" className="p-2 rounded hover:bg-white/10"><MessageSquare className="w-5 h-5 text-white/80" /></button>
+                <button title="Search" className="p-2 rounded hover:bg-white/10"><Search className="w-5 h-5 text-white/70" /></button>
+                <button title="Pinned" className="p-2 rounded hover:bg-white/10"><Pin className="w-5 h-5 text-white/70" /></button>
+                <button title="Recents" className="p-2 rounded hover:bg-white/10"><Clock className="w-5 h-5 text-white/70" /></button>
+                <div className="mt-auto pb-2">
+                  {isLoggedIn && profile ? (
+                    <button onClick={() => router.push('/profile')} className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-purple-500/30">
+                      <img src={profile.avatar_url || '/images/aura-avatar.jpg'} alt="avatar" className="w-full h-full object-cover" />
+                    </button>
+                  ) : (
+                    <button onClick={() => router.push('/auth/login')} title="Sign in" className="p-2 rounded hover:bg-white/10"><LogIn className="w-5 h-5 text-white/70" /></button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main chat column */}
+        <div className="flex-1 flex flex-col min-w-0" style={{ height: 'calc(100vh - 8rem)' }}>
+          {/* Scrollable messages */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
               {/* Welcome message for empty state */}
               {messages.length === 0 && (
@@ -890,19 +919,19 @@ export default function AIAssistantClient() {
                   {/* Suggested prompts */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
                     <button onClick={() => setInput("What hairstyle would suit me for a wedding?")} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all duration-200 text-left group">
-                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">💇‍♀️ Wedding hairstyle advice</div>
+                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">ðŸ’‡â€â™€ï¸ Wedding hairstyle advice</div>
                       <div className="text-white/50 text-xs mt-1">Get recommendations for bridal looks</div>
                     </button>
                     <button onClick={() => setInput("Best salons in Bandra for hair treatment")} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all duration-200 text-left group">
-                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">🏪 Find top-rated salons</div>
+                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">ðŸª Find top-rated salons</div>
                       <div className="text-white/50 text-xs mt-1">Discover salons in your area</div>
                     </button>
                     <button onClick={() => setInput("Skincare routine for oily skin")} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all duration-200 text-left group">
-                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">🧴 Skincare tips</div>
+                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">ðŸ§´ Skincare tips</div>
                       <div className="text-white/50 text-xs mt-1">Personalized routines for your skin type</div>
                     </button>
                     <button onClick={() => setInput("Latest makeup trends for 2024")} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all duration-200 text-left group">
-                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">💄 Makeup trends</div>
+                      <div className="text-white/90 text-sm font-medium group-hover:text-purple-300 transition-colors">ðŸ’„ Makeup trends</div>
                       <div className="text-white/50 text-xs mt-1">Stay updated with current styles</div>
                     </button>
                   </div>
@@ -1041,75 +1070,80 @@ export default function AIAssistantClient() {
               
               <div ref={bottomRef} />
             </div>
-
-            <aside className="hidden lg:block lg:col-span-1">
-              <div className="sticky top-28 space-y-4">
-                {/* Visual Inspiration moved above content */}
-              </div>
-            </aside>
-
           </div>
-        </div>
-      </div>
 
-<div className="mb-86">
-        <div className="border-t border-white/10 bg-black/60 backdrop-blur-xl fixed left-0 right-0 bottom-0 z-40">
-        <div className="max-w-full lg:max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex gap-3 items-end flex-wrap sm:flex-nowrap">
-            <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl flex items-end gap-3 px-4 sm:px-5 py-3 sm:py-3.5 min-w-0 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all duration-200">
-              <div className="flex-1 min-w-0">
-                <input value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={(e)=>e.key==='Enter' && sendMessage()} placeholder="Ask about beauty, salons, or treatments…" className="w-full bg-transparent text-white text-sm sm:text-base placeholder:text-white/40 outline-none" />
-
-                {attachedImage && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <img src={attachedImage} alt="attached" className="w-16 sm:w-24 h-16 sm:h-24 object-cover rounded-lg border border-white/20" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white/70">Image attached</p>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={()=>setAttachedImage(null)} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">Remove</button>
-                        <button onClick={()=>sendMessage()} className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 transition-all whitespace-nowrap">Send</button>
+          {/* Input bar */}
+          <div className="border-t border-white/10 bg-[#05050a]/95 backdrop-blur-xl shrink-0">
+            <div className="px-4 sm:px-5 py-3 sm:py-4">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl flex items-end gap-3 px-4 py-3 min-w-0 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all duration-200">
+                  <div className="flex-1 min-w-0">
+                    <input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                      placeholder="Ask about beauty, salons, or treatments..."
+                      className="w-full bg-transparent text-white text-sm placeholder:text-white/40 outline-none"
+                    />
+                    {attachedImage && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <img src={attachedImage} alt="attached" className="w-16 h-16 object-cover rounded-lg border border-white/20" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white/70">Image attached</p>
+                          <div className="flex gap-2 mt-1.5">
+                            <button onClick={() => setAttachedImage(null)} className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">Remove</button>
+                            <button onClick={() => sendMessage()} className="text-xs px-2 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 transition-all">Send</button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageSelect} />
                   </div>
-                )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-white/10 transition-colors" title="Attach image">
+                      <Camera className="w-4 h-4 text-white/60 hover:text-white/90 transition-colors" />
+                    </button>
+                    <button onClick={startStopRecording} className="p-2 rounded-xl hover:bg-white/10 transition-colors" title="Voice input">
+                      <Mic className="w-4 h-4 text-white/60 hover:text-white/90 transition-colors" />
+                    </button>
+                  </div>
+                </div>
 
-                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageSelect} />
+                <select
+                  value={language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  className="bg-white/5 border border-white/10 text-white text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-purple-500/50 transition-all cursor-pointer hover:bg-white/10 shrink-0 h-10"
+>
+                  <option value="auto" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Auto</option>
+                  <option value="en" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>English</option>
+                  <option value="hi" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Hindi</option>
+                  <option value="mr" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Marathi</option>
+                  <option value="gu" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Gujarati</option>
+                  <option value="bn" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Bengali</option>
+                  <option value="ta" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Tamil</option>
+                  <option value="te" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Telugu</option>
+                  <option value="kn" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Kannada</option>
+                  <option value="ml" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Malayalam</option>
+                  <option value="pa" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Punjabi</option>
+                  <option value="ur" style={{ backgroundColor: "#0a0a0f", color: "#fff" }}>Urdu</option>
+                </select>
+
+                <Button
+                  onClick={() => sendMessage()}
+                  disabled={(!input.trim() && !attachedImage) || isLoading || isTranslating}
+                  className="h-10 w-10 p-0 rounded-xl shrink-0 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 transition-all shadow-lg shadow-purple-500/30"
+                  aria-label="Send message"
+>
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
-              
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={()=>fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-white/10 transition-colors group" title="Attach image"><Camera className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 group-hover:text-white/90 transition-colors"/></button>
-                <button onClick={startStopRecording} className="p-2 rounded-xl hover:bg-white/10 transition-colors group" title="Voice input"><Mic className="w-4 h-4 sm:w-5 sm:h-5 text-white/60 group-hover:text-white/90 transition-colors"/></button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <select
-                value={language}
-                onChange={(e)=>handleLanguageChange(e.target.value)}
-                className="bg-white/5 border border-white/10 text-white text-xs sm:text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all cursor-pointer hover:bg-white/10"
-              >
-                <option value="auto" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Auto</option>
-                <option value="en" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>English</option>
-                <option value="hi" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Hindi</option>
-                <option value="mr" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Marathi</option>
-                <option value="gu" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Gujarati</option>
-                <option value="bn" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Bengali</option>
-                <option value="ta" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Tamil</option>
-                <option value="te" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Telugu</option>
-                <option value="kn" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Kannada</option>
-                <option value="ml" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Malayalam</option>
-                <option value="pa" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Punjabi</option>
-                <option value="ur" style={{ backgroundColor: '#0a0a0f', color: '#fff' }}>Urdu</option>
-              </select>
-
-              <Button onClick={()=>sendMessage()} disabled={!input.trim()||isLoading||isTranslating} className="h-10 sm:h-12 w-10 sm:w-12 p-0 rounded-xl shrink-0 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50" aria-label="Send message"><Send className="w-4 h-4 sm:w-5 sm:h-5"/></Button>
+              <p className="text-center text-xs text-white/30 mt-2 hidden sm:block">
+                AuraAI may occasionally be inaccurate. Always confirm details with the salon.
+              </p>
             </div>
           </div>
-          <p className="text-center text-xs text-white/30 mt-3 hidden sm:block">AuraAI may occasionally be inaccurate. Always confirm details with the salon.</p>
         </div>
       </div>
-</div>
     </div>
-  </div>
   );
 }
