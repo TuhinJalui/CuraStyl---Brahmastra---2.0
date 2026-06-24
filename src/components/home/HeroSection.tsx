@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import SearchBar from "@/components/shared/SearchBar";
+
 import HeroSlideshow from "./HeroSlideshow";
 import PremiumCarousel from "./PremiumCarousel";
 import { Sparkles, Star, Users, Store, Brain, Wand2 } from "lucide-react";
@@ -96,8 +96,8 @@ export default function HeroSection() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
               {[
-                { icon: Store, value: "500+", label: "Salons" },
-                { icon: Users, value: "50K+", label: "Happy Clients" },
+                { icon: Store, value: "10+", label: "Salons" },
+                { icon: Users, value: "1K+", label: "Happy Clients" },
                 { icon: Star, value: "4.8", label: "Avg Rating" },
               ].map(({ icon: Icon, value, label }) => (
                 <div key={label} className="glass rounded-2xl p-4 border border-white/10 hover:border-purple-500/30 transition-all duration-300 group">

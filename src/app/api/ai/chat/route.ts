@@ -282,22 +282,84 @@ function calculateDynamicTokens(queryText: string, queryIntent: any): number {
   return Math.min(baseTokens, 2500); // Cap at 2500 for safety
 }
 
-// Generate descriptive titles for images based on query intent
-function generateImageTitles(queryIntent: any, imageCount: number): string[] {
+// Generate descriptive titles for images based on query intent and gender
+function generateImageTitles(queryIntent: any, imageCount: number, detectedGender?: 'male' | 'female' | null, userQuery?: string): string[] {
   const titles: string[] = [];
   
   if (queryIntent.type === 'hairstyle') {
-    const hairstyleTitles = [
-      'Layered Cut with Volume',
+    // Determine gender-specific hairstyle titles
+    const isMale = detectedGender === 'male' || (userQuery && (
+      userQuery.toLowerCase().includes('men') || 
+      userQuery.toLowerCase().includes('male') || 
+      userQuery.toLowerCase().includes('guy') ||
+      userQuery.toLowerCase().includes('barber') ||
+      userQuery.toLowerCase().includes('gentleman')
+    ));
+    
+    const mensHairstyles = [
+      'Classic Taper Fade',
       'Textured Crop Style',
-      'Long Flowing Waves',
-      'Shag Cut Modern Look',
-      'Sleek Bob Haircut',
-      'Curly Pixie Style',
-      'Side-Swept Layers',
-      'Natural Texture Enhancement'
+      'Modern Undercut',
+      'Slicked Back Pompadour',
+      'Low Fade with Texture',
+      'Messy Quiff Look',
+      'Side Part Gentleman Cut',
+      'High and Tight Military',
+      'French Crop Modern',
+      'Mid Fade with Volume',
+      'Comb Over Fade Style',
+      'Faux Hawk Design',
+      'Long Top Short Sides',
+      'Spiky Textured Hair',
+      'Buzz Cut with Line Up',
+      'Crew Cut Variation',
+      'Caesar Cut Classic',
+      'Ivy League Style',
+      'Brush Up with Fade',
+      'Man Bun with Fade',
+      'Mohawk Fade Style',
+      'Angular Fringe Cut',
+      'Disconnected Undercut',
+      'Slick Back Fade',
+      'Wavy Textured Style',
     ];
-    return hairstyleTitles.slice(0, imageCount);
+    
+    const womensHairstyles = [
+      'Layered Waves with Volume',
+      'Sleek Bob Haircut',
+      'Modern Pixie Cut',
+      'Long Flowing Layers',
+      'Textured Shag Style',
+      'Bouncy Curly Look',
+      'Side-Swept Bangs Style',
+      'Beach Waves Hair',
+      'Blunt Cut with Fringe',
+      'Balayage Highlights',
+      'Soft Romantic Curls',
+      'Asymmetric Bob Cut',
+      'Natural Texture Style',
+      'Voluminous Blowout',
+      'Braided Crown Look',
+      'Butterfly Haircut',
+      'Wolf Cut Layers',
+      'Curtain Bangs Style',
+      'Lob with Waves',
+      'Sleek Straight Hair',
+      'Messy Bun Updo',
+      'Half-Up Half-Down',
+      'French Twist Elegant',
+      'Fishtail Braid Style',
+      'Top Knot Modern',
+    ];
+    
+    const selectedTitles = isMale ? mensHairstyles : womensHairstyles;
+    
+    // Shuffle for variety and freshness
+    const shuffled = [...selectedTitles].sort(() => Math.random() - 0.5);
+    const finalTitles = shuffled.slice(0, Math.min(imageCount, shuffled.length));
+    
+    console.log(`[Image Titles] Generated ${finalTitles.length} ${isMale ? 'mens' : 'womens'} hairstyle titles`);
+    return finalTitles;
   }
   
   if (queryIntent.type === 'makeup') {
@@ -307,24 +369,45 @@ function generateImageTitles(queryIntent: any, imageCount: number): string[] {
       'Contouring Technique',
       'Glamorous Evening Makeup',
       'Smokey Eye Tutorial',
-      'Bridal Makeup Style'
+      'Bridal Makeup Style',
+      'Fresh Dewy Glow',
+      'Cat Eye Perfection',
+      'Nude Glam Makeup',
+      'Festive Party Makeup',
+      'Soft Romantic Look',
+      'Dramatic Red Lip',
+      'Colorful Creative Look',
+      'Minimal Chic Makeup',
+      'Bronze Goddess Glow',
+      'Korean Glass Skin',
+      'Vintage Glam Style',
+      'Sunset Eye Makeup',
+      'Winged Liner Perfection',
+      'Highlighted Glow Up',
     ];
-    return makeupTitles.slice(0, imageCount);
+    const shuffled = [...makeupTitles].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(imageCount, shuffled.length));
   }
   
   if (queryIntent.type === 'skincare') {
     const skincareTitles = [
-      'Glowing Skin Care Result',
+      'Glowing Skin Result',
+      'Clear Skin Treatment',
+      'Hydration Routine',
+      'Anti-Aging Skincare',
+      'Brightening Facial',
       'Acne Treatment Progress',
-      'Skin Hydration Routine',
-      'Anti-Aging Skincare'
+      'Dark Circle Treatment',
+      'Radiant Complexion',
+      'Skin Rejuvenation',
+      'Even Skin Tone',
     ];
     return skincareTitles.slice(0, imageCount);
   }
   
-  // Fallback titles
+  // Fallback titles with variation
   for (let i = 1; i <= imageCount; i++) {
-    titles.push(`Beauty Style ${i}`);
+    titles.push(`Style Option ${i}`);
   }
   return titles;
 }
@@ -411,15 +494,21 @@ export async function POST(req: NextRequest) {
     // Only fetch images for queries that actually need visual content
     if (responsePlan.shouldFetchImages && responsePlan.imageCount > 0) {
       try {
-        const keywords = extractImageSearchKeywords(lastContent, queryIntent.type);
+        const keywords = extractImageSearchKeywords(lastContent, queryIntent.type, detectedGender);
         
         // Skip image fetching for non-visual queries like "what can you do", "hello", etc.
         const nonVisualKeywords = ['what can you', 'who are you', 'hello', 'hi', 'help', 'how are you', 'thanks', 'thank you'];
         const isNonVisualQuery = nonVisualKeywords.some(k => lastContent.toLowerCase().includes(k));
         
         if (!isNonVisualQuery && keywords && keywords.length > 3) {
+          console.log(`[Proactive Images] Fetching ${responsePlan.imageCount} images for keywords: "${keywords}"`);
+          console.log(`[Proactive Images] Query Intent: ${queryIntent.type}, Gender: ${detectedGender || 'not detected'}`);
+          
           const rawImages = await getSearchImages(keywords, responsePlan.imageCount);
-          const titles = generateImageTitles(queryIntent, rawImages.length);
+          console.log(`[Proactive Images] Received ${rawImages.length} raw images from search`);
+          
+          const titles = generateImageTitles(queryIntent, rawImages.length, detectedGender, lastContent);
+          console.log(`[Proactive Images] Generated ${titles.length} titles`);
           
           // Merge titles with images
           proactiveImages = rawImages.map((img: any, idx: number) => ({
@@ -427,13 +516,17 @@ export async function POST(req: NextRequest) {
             alt: titles[idx] || img.alt || `Image ${idx + 1}`
           }));
           
-          console.log(`[Proactive Images] Fetched ${proactiveImages.length} images for: ${keywords}`);
+          console.log(`[Proactive Images] SUCCESS: Prepared ${proactiveImages.length} images with titles`);
+          console.log(`[Proactive Images] Sample titles:`, titles.slice(0, 3));
+          console.log(`[Proactive Images] Sample URLs:`, proactiveImages.slice(0, 2).map(i => i.url.slice(0, 60)));
         } else {
-          console.log(`[Proactive Images] Skipped for non-visual query: "${lastContent.slice(0, 50)}"`);
+          console.log(`[Proactive Images] Skipped - Reason: ${isNonVisualQuery ? 'non-visual query' : 'keywords too short'}`);
         }
       } catch (err) {
-        console.warn('[Proactive Images Error]', err);
+        console.error('[Proactive Images Error]', err);
       }
+    } else {
+      console.log(`[Proactive Images] Skipped - shouldFetch: ${responsePlan.shouldFetchImages}, count: ${responsePlan.imageCount}`);
     }
 
     // Fetch salon images if this is a salon-related query

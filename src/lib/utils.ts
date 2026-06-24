@@ -83,19 +83,19 @@ export const MUMBAI_AREAS = [
 export const SERVICE_CATEGORIES = [
   "Haircut",
   "Hair Color",
+  "Hair",
   "Facial",
   "Makeup",
+  "Bridal",
   "Spa",
   "Manicure",
   "Pedicure",
   "Waxing",
   "Threading",
   "Massage",
-  "Bridal Package",
-  "Hair Treatment",
-  "Nail Art",
-  "Eyebrows",
-  "Eyelashes",
+  "Nail",
+  "Treatment",
+  "HydraFacial",
 ];
 
 export const PRICE_RANGES = [

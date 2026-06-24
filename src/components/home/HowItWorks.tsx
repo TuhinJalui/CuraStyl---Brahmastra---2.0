@@ -5,7 +5,7 @@ const steps = [
     icon: Search,
     step: "01",
     title: "Search & Discover",
-    desc: "Browse 500+ verified salons by service, area, or let our AI suggest the best match for you.",
+    desc: "Browse verified salons by service, area, or let our AI suggest the best match for you.",
     color: "from-purple-500/20 to-violet-500/20 border-purple-500/30",
     iconColor: "text-purple-400",
   },
@@ -43,7 +43,7 @@ export default function HowItWorks() {
         <div className="text-center mb-14">
           <span className="text-sm font-medium text-purple-400 uppercase tracking-wider mb-3 block">Simple Process</span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            How <span className="gradient-text">GlamHub</span> Works
+            How <span className="gradient-text">CuraStyl</span> Works
           </h2>
           <p className="text-white/50 max-w-lg mx-auto">
             From discovery to your perfect look — we&apos;ve made beauty booking effortlessly simple.

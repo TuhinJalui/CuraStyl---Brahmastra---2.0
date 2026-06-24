@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import {
   Gift, Star, Zap, Crown, ArrowLeft, Sparkles, Lock,
-  CheckCircle, Trophy, TrendingUp, Calendar, ShoppingBag
+  CheckCircle, Trophy, TrendingUp, Calendar, ShoppingBag, ExternalLink, Loader2, Copy, Ticket, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import PaymentProcessor from "@/components/payment/PaymentProcessor";
 
 const REWARDS_CATALOG = [
   {
@@ -86,13 +88,132 @@ const MEMBERSHIP_TIERS = [
 export default function RewardsPage() {
   const { profile, isLoggedIn, isLoading, isSalonOwner } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"earn" | "redeem" | "tiers">("earn");
+  const [activeTab, setActiveTab] = useState<"earn" | "redeem" | "tiers" | "coupons">("earn");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemedCoupons, setRedeemedCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  
+  // Payment modal states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrderData, setPaymentOrderData] = useState<any>(null);
+  const [upgrading, setUpgrading] = useState(false);
 
   useEffect(() => {
     if (isLoggedIn && isSalonOwner) {
       router.replace("/salon-owner/dashboard");
     }
   }, [isLoggedIn, isSalonOwner, router]);
+
+  // Fetch redeemed coupons
+  useEffect(() => {
+    if (isLoggedIn && !isSalonOwner && activeTab === "coupons") {
+      fetchRedeemedCoupons();
+    }
+  }, [isLoggedIn, isSalonOwner, activeTab]);
+
+  const fetchRedeemedCoupons = async () => {
+    setLoadingCoupons(true);
+    try {
+      const res = await fetch("/api/glam-points/redeem");
+      const data = await res.json();
+      if (res.ok) {
+        setRedeemedCoupons(data.coupons || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch coupons:", err);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  const handleRedeem = async (rewardId: string, points: number) => {
+    if (glamPoints < points) {
+      toast.error(`You need ${points - glamPoints} more GlamPoints to redeem this reward`);
+      return;
+    }
+
+    setIsRedeeming(true);
+    try {
+      const res = await fetch("/api/glam-points/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points, rewardId }),
+      });
+
+      const data = await res.json();
+      
+      // Log full error for debugging
+      if (!res.ok) {
+        console.error("Redemption API error:", {
+          status: res.status,
+          statusText: res.statusText,
+          error: data.error,
+          data
+        });
+        throw new Error(data.error || "Redemption failed");
+      }
+
+      toast.success(`🎉 ${data.message}\nCoupon Code: ${data.coupon.code}`);
+      
+      // Refresh profile to update points balance
+      window.location.reload();
+    } catch (err: any) {
+      console.error("Redemption error:", err);
+      toast.error(err.message || "Failed to redeem reward");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
+
+  const handleUpgrade = async (tier: string) => {
+    if (!isLoggedIn) {
+      toast.error("Please sign in to upgrade your plan");
+      router.push("/auth/login");
+      return;
+    }
+
+    setUpgrading(true);
+    try {
+      const res = await fetch("/api/customer/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create payment order");
+      }
+
+      // data contains: orderId, amount, tier, planName, planPrice, message
+      setPaymentOrderData({
+        orderId: data.orderId,
+        amount: data.amount,
+        tier: data.tier,
+        planName: data.planName,
+        planPrice: data.planPrice,
+      });
+      setShowPaymentModal(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initiate upgrade");
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setPaymentOrderData(null);
+    toast.success("🎉 Membership upgraded successfully!");
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast.error(error || "Payment failed");
+  };
 
   const glamPoints = (profile as any)?.glam_points ?? 0;
   const membershipTier = (profile as any)?.membership_tier ?? "basic";
@@ -135,6 +256,33 @@ export default function RewardsPage() {
             <ArrowLeft className="w-4 h-4" /> Back to Profile
           </Button>
         </Link>
+
+        {/* Upgrade CTA */}
+        {membershipTier !== "vip" && (
+          <div 
+            onClick={() => handleUpgrade(membershipTier === "basic" ? "premium" : "vip")}
+            className="glass-card p-4 rounded-2xl border border-purple-500/30 mb-6 hover:border-purple-500/50 transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white">
+                    {upgrading ? "Processing..." : `Upgrade to ${membershipTier === "basic" ? "Premium" : "VIP"}`}
+                  </p>
+                  <p className="text-xs text-white/50">Unlock exclusive benefits and earn more points</p>
+                </div>
+              </div>
+              {upgrading ? (
+                <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+              ) : (
+                <Crown className="w-5 h-5 text-purple-400" />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Hero Points Card */}
         <div className="relative rounded-3xl overflow-hidden mb-8 bg-gradient-to-br from-purple-600 via-pink-600 to-rose-600 p-8 shadow-2xl shadow-purple-500/30">
@@ -180,7 +328,7 @@ export default function RewardsPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-8 p-1.5 bg-white/5 rounded-2xl border border-white/10">
-          {(["earn", "redeem", "tiers"] as const).map((tab) => (
+          {(["earn", "redeem", "coupons", "tiers"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -193,6 +341,7 @@ export default function RewardsPage() {
             >
               {tab === "earn" && "🎁 How to Earn"}
               {tab === "redeem" && "🛍️ Redeem"}
+              {tab === "coupons" && "🎟️ My Coupons"}
               {tab === "tiers" && "👑 Tiers"}
             </button>
           ))}
@@ -240,16 +389,135 @@ export default function RewardsPage() {
                       </span>
                       <Button
                         size="sm"
-                        disabled={!canRedeem}
+                        disabled={!canRedeem || isRedeeming}
+                        onClick={() => handleRedeem(reward.id, reward.points)}
                         className={cn("text-xs", !canRedeem && "cursor-not-allowed")}
                       >
-                        {canRedeem ? "Redeem" : <><Lock className="w-3 h-3 mr-1" /> Need {(reward.points - glamPoints).toLocaleString()} more</>}
+                        {isRedeeming ? (
+                          <>
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            Redeeming...
+                          </>
+                        ) : canRedeem ? (
+                          "Redeem"
+                        ) : (
+                          <>
+                            <Lock className="w-3 h-3 mr-1" /> Need {(reward.points - glamPoints).toLocaleString()} more
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Coupons Tab */}
+        {activeTab === "coupons" && (
+          <div className="space-y-4">
+            {loadingCoupons ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+                <p className="text-white/60">Loading your coupons...</p>
+              </div>
+            ) : redeemedCoupons.length === 0 ? (
+              <div className="text-center py-12">
+                <Ticket className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">No Coupons Yet</h3>
+                <p className="text-white/50 mb-6">Redeem your GlamPoints to get discount coupons!</p>
+                <Button onClick={() => setActiveTab("redeem")} className="gap-2">
+                  <Gift className="w-4 h-4" />
+                  Browse Rewards
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {redeemedCoupons.map((coupon) => {
+                  const validUntil = new Date(coupon.valid_until);
+                  const isExpired = validUntil < new Date();
+                  const isUsed = (coupon.used_count || 0) >= (coupon.usage_limit || 1);
+                  const daysLeft = Math.ceil((validUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+                  const copyCouponCode = () => {
+                    navigator.clipboard.writeText(coupon.code);
+                    toast.success("Coupon code copied!");
+                  };
+
+                  return (
+                    <div
+                      key={coupon.id}
+                      className={cn(
+                        "glass rounded-2xl border p-5 transition-all",
+                        isExpired || isUsed ? "border-white/5 opacity-50" : "border-purple-500/20 hover:border-purple-500/40"
+                      )}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="text-2xl">🎟️</div>
+                        {isUsed ? (
+                          <span className="px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-semibold">Used</span>
+                        ) : isExpired ? (
+                          <span className="px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-semibold">Expired</span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold">Active</span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/50">Coupon Code</span>
+                          {!isExpired && !isUsed && (
+                            <button
+                              onClick={copyCouponCode}
+                              className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" />
+                              Copy
+                            </button>
+                          )}
+                        </div>
+                        <div className="font-mono text-lg font-bold text-white bg-white/5 px-3 py-2 rounded-lg">
+                          {coupon.code}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs mb-4">
+                        <div className="flex justify-between">
+                          <span className="text-white/50">Discount</span>
+                          <span className="text-white font-semibold">
+                            {coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`}
+                          </span>
+                        </div>
+                        {coupon.min_order_amount > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-white/50">Min. Order</span>
+                            <span className="text-white">₹{coupon.min_order_amount}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-white/50">Valid Until</span>
+                          <span className={cn("text-white", daysLeft <= 3 && daysLeft > 0 && "text-amber-400")}>
+                            {validUntil.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            {!isExpired && !isUsed && daysLeft <= 7 && (
+                              <span className="ml-1">({daysLeft}d left)</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      {!isExpired && !isUsed && (
+                        <Link href="/salons">
+                          <Button size="sm" className="w-full bg-gradient-to-r from-purple-600 to-pink-600">
+                            Use Now
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -306,6 +574,48 @@ export default function RewardsPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentOrderData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => {
+          setShowPaymentModal(false);
+          setPaymentOrderData(null);
+        }}>
+          <div 
+            className="relative w-full max-w-md glass-dark rounded-3xl p-6 border border-purple-500/20 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentOrderData(null);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Complete Payment</h2>
+              <p className="text-white/60 text-sm">
+                Upgrading to {paymentOrderData.planName} - ₹{paymentOrderData.planPrice}
+              </p>
+            </div>
+
+            <PaymentProcessor
+              amount={paymentOrderData.amount}
+              orderId={paymentOrderData.orderId}
+              type="plan_upgrade_customer"
+              metadata={{
+                tier: paymentOrderData.tier,
+                tierName: paymentOrderData.planName,
+              }}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

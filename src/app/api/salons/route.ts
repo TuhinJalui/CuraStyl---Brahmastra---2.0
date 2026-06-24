@@ -26,15 +26,17 @@ export async function GET(req: NextRequest) {
       q = q.or(`name.ilike.%${query}%,area.ilike.%${query}%,description.ilike.%${query}%`);
     }
 
-    if (area) q = q.eq("area", area);
+    // Area filter - use ilike for partial matching (e.g., "Bandra" matches "Bandra West")
+    if (area) q = q.ilike("area", `%${area}%`);
     if (category) q = q.eq("category", category);
     if (minPrice) q = q.gte("starting_price", Number(minPrice));
     if (maxPrice) q = q.lte("starting_price", Number(maxPrice));
     if (minRating) q = q.gte("rating", Number(minRating));
 
-    // Service filter — check amenities array contains the service string
+    // Service filter - check if salon name or amenities contain the service
+    // This is a flexible search for service-related keywords
     if (service) {
-      q = q.contains("amenities", [service]);
+      q = q.or(`amenities.cs.{${service}},name.ilike.%${service}%,description.ilike.%${service}%`);
     }
 
     // Sorting

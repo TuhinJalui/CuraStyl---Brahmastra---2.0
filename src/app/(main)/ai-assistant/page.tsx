@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import RouteGuard from "@/components/auth/RouteGuard";
 import AIAssistantClient from "./AIAssistantClient";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AIAssistantPage() {
-  return <AIAssistantClient />;
+  return (
+    <RouteGuard requireAuth>
+      <AIAssistantClient />
+    </RouteGuard>
+  );
 }

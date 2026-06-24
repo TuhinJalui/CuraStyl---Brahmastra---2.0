@@ -14,8 +14,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Mumbai GlamHub – Book Beauty Salons in Mumbai",
-    template: "%s | Mumbai GlamHub",
+    default: "CuraStyl – Book Beauty Salons in Mumbai",
+    template: "%s | CuraStyl",
   },
   description:
     "Discover and book the best beauty salons in Mumbai. AI-powered recommendations for haircuts, facials, spa, makeup, and more across Bandra, Andheri, Juhu & beyond.",
@@ -27,19 +27,19 @@ export const metadata: Metadata = {
     "makeup artist Mumbai",
     "bridal makeup Mumbai",
   ],
-  authors: [{ name: "Mumbai GlamHub" }],
-  creator: "Mumbai GlamHub",
+  authors: [{ name: "CuraStyl" }],
+  creator: "CuraStyl",
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://mumbai-glamhub.vercel.app",
-    title: "Mumbai GlamHub – AI-Powered Beauty Salon Marketplace",
+    url: "https://CuraStyl.vercel.app",
+    title: "CuraStyl – AI-Powered Beauty Salon Marketplace",
     description: "Find, compare & book top beauty salons across Mumbai",
-    siteName: "Mumbai GlamHub",
+    siteName: "CuraStyl",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Mumbai GlamHub",
+    title: "CuraStyl",
     description: "Find, compare & book top beauty salons across Mumbai",
   },
   robots: {

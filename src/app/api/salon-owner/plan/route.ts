@@ -111,51 +111,128 @@ export async function GET() {
   });
 }
 
-// POST /api/salon-owner/plan — upgrade plan (mock for now, real payment via Razorpay)
+// POST /api/salon-owner/plan — initiate plan upgrade (creates payment order)
 export async function POST(req: NextRequest) {
-  const supabase = await getSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Auth required" }, { status: 401 });
+  try {
+    console.log('[SalonPlan] ===== START =====');
+    const supabase = await getSupabase();
+    console.log('[SalonPlan] Supabase client created');
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[SalonPlan] Auth check:', { hasUser: !!user, authError });
+    
+    if (authError) {
+      console.error('[SalonPlan] Auth error:', authError);
+      return NextResponse.json({ error: "Authentication error", details: authError.message }, { status: 401 });
+    }
+    
+    if (!user) {
+      console.error('[SalonPlan] No user authenticated');
+      return NextResponse.json({ error: "Auth required" }, { status: 401 });
+    }
 
-  const { tier } = await req.json();
+    console.log('[SalonPlan] Reading request body...');
+    const body = await req.json();
+    const { tier } = body;
+    console.log('[SalonPlan] Requested tier:', tier, 'Full body:', body);
+  
   if (!tier || !PLANS[tier as keyof typeof PLANS]) {
+    console.error('[SalonPlan] Invalid tier:', tier);
     return NextResponse.json({ error: "Invalid plan tier" }, { status: 400 });
   }
 
-  const { data: salon } = await supabase
+  console.log('[SalonPlan] Fetching salon for user:', user.id);
+  const { data: salon, error: salonError } = await supabase
     .from("salons")
-    .select("id")
+    .select("id, plan_tier, name")
     .eq("owner_id", user.id)
     .single();
 
-  if (!salon) return NextResponse.json({ error: "No salon found" }, { status: 404 });
+  if (salonError) {
+    console.error('[SalonPlan] Error fetching salon:', salonError);
+    return NextResponse.json({ error: "Failed to fetch salon data" }, { status: 500 });
+  }
 
-  const expiresAt = new Date();
-  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  if (!salon) {
+    console.error('[SalonPlan] No salon found for user:', user.id);
+    return NextResponse.json({ error: "No salon found" }, { status: 404 });
+  }
 
-  const { error } = await supabase
-    .from("salons")
-    .update({
-      plan_tier: tier,
-      plan_expires_at: expiresAt.toISOString(),
-    })
-    .eq("id", salon.id);
+  console.log('[SalonPlan] Salon found:', salon);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const plan = PLANS[tier as keyof typeof PLANS];
+  console.log('[SalonPlan] Plan details:', plan);
+  
+  if (plan.price === 0) {
+    console.error('[SalonPlan] Attempted to upgrade to free plan');
+    return NextResponse.json({ error: "Cannot upgrade to free plan" }, { status: 400 });
+  }
 
-  // Send congratulation notification to owner
-  await supabase.from("notifications").insert({
-    user_id: user.id,
-    type: "plan_upgrade",
-    title: `🎉 Plan Upgraded to ${PLANS[tier as keyof typeof PLANS].name}!`,
-    message: `Your salon is now on the ${PLANS[tier as keyof typeof PLANS].name} plan. Enjoy all the new features!`,
-    link: "/salon-owner/dashboard",
-    is_read: false,
+  // Create payment order
+  console.log('[SalonPlan] Creating payment order with:', {
+    amount: plan.price,
+    type: "plan_upgrade_salon",
+    metadata: {
+      tier,
+      tierName: plan.name,
+      salonId: salon.id,
+      salonName: salon.name,
+    },
   });
+
+  const orderResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/payment/create-order`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: req.headers.get("cookie") || "",
+      },
+      body: JSON.stringify({
+        amount: plan.price,
+        type: "plan_upgrade_salon",
+        metadata: {
+          tier,
+          tierName: plan.name,
+          salonId: salon.id,
+          salonName: salon.name,
+        },
+      }),
+    }
+  );
+
+  console.log('[SalonPlan] Payment order response status:', orderResponse.status);
+
+  if (!orderResponse.ok) {
+    const errorData = await orderResponse.json().catch(() => ({}));
+    console.error('[SalonPlan] Payment order creation failed:', errorData);
+    return NextResponse.json({ 
+      error: "Failed to create payment order",
+      details: errorData 
+    }, { status: 500 });
+  }
+
+  const orderData = await orderResponse.json();
+  console.log('[SalonPlan] Payment order created successfully:', orderData);
 
   return NextResponse.json({
-    success: true,
-    plan: PLANS[tier as keyof typeof PLANS],
-    message: `Successfully upgraded to ${PLANS[tier as keyof typeof PLANS].name}!`,
+    ...orderData,
+    planName: plan.name,
+    planPrice: plan.price,
+    message: "Payment order created. Complete payment to upgrade.",
   });
+  
+  } catch (error) {
+    console.error('[SalonPlan] ===== UNEXPECTED ERROR =====');
+    console.error('[SalonPlan] Error type:', error?.constructor?.name);
+    console.error('[SalonPlan] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[SalonPlan] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('[SalonPlan] ===== END ERROR =====');
+    
+    return NextResponse.json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error",
+      type: error?.constructor?.name || "Unknown"
+    }, { status: 500 });
+  }
 }

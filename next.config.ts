@@ -113,7 +113,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Allow OpenStreetMap iframe embeds on salon detail pages
+  // Allow OpenStreetMap iframe embeds on salon detail pages and Virtual Try-On external apps
   async headers() {
     return [
       {
@@ -128,8 +128,8 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob:",
-              "connect-src 'self' https:",
-              "frame-src 'self' https://www.openstreetmap.org https://openstreetmap.org",
+              "connect-src 'self' https: wss:",
+              "frame-src 'self' https://www.openstreetmap.org https://openstreetmap.org https://model-men.vercel.app https://model-two-henna.vercel.app",
             ].join("; "),
           },
         ],

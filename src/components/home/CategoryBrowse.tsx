@@ -3,14 +3,14 @@
 import Link from "next/link";
 
 const categories = [
-  { name: "Haircut", icon: "✂️", count: 180, color: "from-purple-500/20 to-violet-500/20 border-purple-500/30" },
-  { name: "Facial", icon: "✨", count: 142, color: "from-pink-500/20 to-rose-500/20 border-pink-500/30" },
-  { name: "Makeup", icon: "💄", count: 98, color: "from-red-500/20 to-pink-500/20 border-red-500/30" },
-  { name: "Spa", icon: "🛁", count: 76, color: "from-teal-500/20 to-emerald-500/20 border-teal-500/30" },
-  { name: "Nail Art", icon: "💅", count: 112, color: "from-amber-500/20 to-yellow-500/20 border-amber-500/30" },
-  { name: "Hair Color", icon: "🎨", count: 89, color: "from-blue-500/20 to-indigo-500/20 border-blue-500/30" },
-  { name: "Bridal", icon: "👰", count: 54, color: "from-rose-500/20 to-pink-500/20 border-rose-500/30" },
-  { name: "Massage", icon: "🧘", count: 67, color: "from-green-500/20 to-emerald-500/20 border-green-500/30" },
+  { name: "Haircut", icon: "✂️", color: "from-purple-500/20 to-violet-500/20 border-purple-500/30" },
+  { name: "Facial", icon: "✨", color: "from-pink-500/20 to-rose-500/20 border-pink-500/30" },
+  { name: "Makeup", icon: "💄", color: "from-red-500/20 to-pink-500/20 border-red-500/30" },
+  { name: "Spa", icon: "🛁", color: "from-teal-500/20 to-emerald-500/20 border-teal-500/30" },
+  { name: "Nail Art", icon: "💅", color: "from-amber-500/20 to-yellow-500/20 border-amber-500/30" },
+  { name: "Hair Color", icon: "🎨", color: "from-blue-500/20 to-indigo-500/20 border-blue-500/30" },
+  { name: "Bridal", icon: "👰", color: "from-rose-500/20 to-pink-500/20 border-rose-500/30" },
+  { name: "Massage", icon: "🧘", color: "from-green-500/20 to-emerald-500/20 border-green-500/30" },
 ];
 
 export default function CategoryBrowse() {
@@ -34,7 +34,6 @@ export default function CategoryBrowse() {
               {cat.icon}
             </div>
             <p className="text-sm font-semibold text-white/90 mb-1">{cat.name}</p>
-            <p className="text-[11px] text-white/40">{cat.count} salons</p>
           </Link>
         ))}
       </div>

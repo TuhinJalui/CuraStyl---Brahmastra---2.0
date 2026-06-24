@@ -173,7 +173,7 @@ function formatAssistantReply(text: string) {
 
 const WELCOME: AIMessage = {
   role: "assistant",
-  content: "Hi! I'm AuraAI â€” your personal beauty advisor for Mumbai. Ask me anything.",
+  content: "Hi! I'm AuraAI your personal beauty advisor for Mumbai. Ask me anything.",
   timestamp: new Date(),
 };
 
@@ -905,7 +905,7 @@ export default function AIAssistantClient() {
         <div className="flex-1 flex flex-col min-w-0" style={{ height: 'calc(100vh - 8rem)' }}>
           {/* Scrollable messages */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+            <div className="w-full px-8 py-6 space-y-5 lg:px-16">
 
               {/* Welcome message for empty state */}
               {messages.length === 0 && (
@@ -943,38 +943,25 @@ export default function AIAssistantClient() {
                 const isLast = i === messages.length - 1;
                 const containerId = `msg-${i}`;
                 
-                // Calculate dynamic width based on content length
-                const contentLength = (m.content || '').length;
-                let dynamicWidth = 'max-w-[85%]'; // Default for long messages
-                if (contentLength < 100) {
-                  dynamicWidth = 'max-w-[60%]'; // Short messages
-                } else if (contentLength < 300) {
-                  dynamicWidth = 'max-w-[70%]'; // Medium messages
-                } else if (contentLength < 800) {
-                  dynamicWidth = 'max-w-[80%]'; // Long messages
-                }
-                
                 return (
                   <div key={i} id={containerId} className={cn(
                     "flex gap-3 items-start w-full",
-                    isUser ? 'flex-row-reverse justify-start' : 'justify-start'
+                    isUser ? 'justify-end' : 'justify-start max-w-4xl'
                   )}>
-                    {/* Avatar */}
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm md:w-9 md:h-9 sm:w-8 sm:h-8",
-                      isUser ? 'bg-gradient-to-br from-purple-600 to-pink-500' : 'bg-white/5 border border-white/10'
-                    )}>
-                      {isUser ? <User className="w-4 h-4 text-white md:w-3.5 md:h-3.5" /> : <Sparkles className="w-4 h-4 text-white md:w-3.5 md:h-3.5" />}
-                    </div>
+                    {/* Avatar - Only show on left for AI, right for user */}
+                    {!isUser && (
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-gradient-to-br from-amber-500 to-yellow-600 shadow-sm md:w-9 md:h-9 sm:w-8 sm:h-8">
+                        <Sparkles className="w-4 h-4 text-white md:w-3.5 md:h-3.5" />
+                      </div>
+                    )}
 
                     {/* Message bubble */}
                     <div className={cn(
                       "rounded-2xl px-5 py-4 text-sm leading-relaxed shadow md:px-4 md:py-3 sm:px-3 sm:py-2.5",
-                      dynamicWidth,
-                      "md:max-w-[75%] sm:max-w-[85%]", // Tablet and mobile widths
+                      "max-w-[75%] md:max-w-[85%] sm:max-w-[80%]",
                       isUser
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white border border-purple-700/30 rounded-tr-none'
-                        : 'bg-white/5 border border-white/10 text-white/85 rounded-tl-none'
+                        ? 'bg-white/5 border border-emerald-500/20 text-white/85 rounded-tr-none min-w-[250px] sm:min-w-[140px]'
+                        : 'bg-white/5 border border-amber-500/20 text-white/85 rounded-tl-none min-w-[250px] sm:min-w-[140px]'
                     )}>
                       {/* Render user messages with formatting, assistant messages with per-word spans for highlighting */}
                       {isUser ? (
@@ -985,7 +972,7 @@ export default function AIAssistantClient() {
                             const { text, cta } = extractCTA(m.content || '');
                             return (
                               <>
-                                <div className="text-sm leading-relaxed whitespace-pre-wrap md:text-xs" dangerouslySetInnerHTML={{ __html: formatContent(text.replace(/\n\n/g, '\n').replace(/([.!?])\n/g, '$1\n')).replace(/\n/g, '<br/>') }} />
+                                <div className="text-sm leading-relaxed mr-10 whitespace-pre-wrap md:text-xs" dangerouslySetInnerHTML={{ __html: formatContent(text.replace(/\n\n/g, '\n').replace(/([.!?])\n/g, '$1\n')).replace(/\n/g, '<br/>') }} />
                                 {cta && (
                                   <a href={cta.link} className="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-0.5">
                                     {cta.label}
@@ -997,6 +984,7 @@ export default function AIAssistantClient() {
                         </>
                       )}
 
+                      {/* Bottom section with buttons and timestamp */}
                       <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           {!isUser && (
@@ -1027,9 +1015,16 @@ export default function AIAssistantClient() {
                       </div>
                     </div>
 
+                    {/* User Avatar - Only show on right for user, OUTSIDE the bubble */}
+                    {isUser && (
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm md:w-9 md:h-9 sm:w-8 sm:h-8">
+                        <User className="w-4 h-4 text-white md:w-3.5 md:h-3.5" />
+                      </div>
+                    )}
+
                     {/* Show carousel inline after assistant message if it has images */}
                     {!isUser && isLast && (parsed as any)?.images && (parsed as any).images.length > 0 && (
-                      <div className="w-full mt-4 ml-14 md:ml-12 sm:ml-11">
+                      <div className="w-full mt-4 pl-14 md:pl-12 sm:pl-11">
                         <ImageCarousel images={(parsed as any).images} />
                       </div>
                     )}
@@ -1040,18 +1035,18 @@ export default function AIAssistantClient() {
               {/* AI Thinking Animation */}
               {isLoading && (
                 <div className="flex gap-3 items-start w-full justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-white/5 border border-white/10 shadow-sm md:w-9 md:h-9 sm:w-8 sm:h-8">
-                    <Sparkles className="w-4 h-4 text-purple-400 animate-pulse md:w-3.5 md:h-3.5" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-gradient-to-br from-amber-500 to-yellow-600 shadow-sm md:w-9 md:h-9 sm:w-8 sm:h-8">
+                    <Sparkles className="w-4 h-4 text-white animate-pulse md:w-3.5 md:h-3.5" />
                   </div>
                   
-                  <div className="relative rounded-2xl px-5 py-4 bg-white/5 border border-white/10 max-w-[320px] md:px-4 md:py-3 sm:px-3 sm:py-2.5 sm:max-w-[280px]">
+                  <div className="relative rounded-2xl px-5 py-4 bg-white/5 border border-amber-500/20 max-w-[320px] md:px-4 md:py-3 sm:px-3 sm:py-2.5 sm:max-w-[280px]">
                     {/* Animated thinking text */}
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-3 ml-20">
                       <span className="text-sm text-white/70 font-medium md:text-xs">AuraAI is thinking</span>
                       <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }}></span>
-                        <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }}></span>
-                        <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }}></span>
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }}></span>
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }}></span>
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }}></span>
                       </div>
                     </div>
                     
@@ -1063,7 +1058,7 @@ export default function AIAssistantClient() {
                     </div>
                     
                     {/* Pulsing glow effect */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 animate-pulse pointer-events-none"></div>
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 animate-pulse pointer-events-none"></div>
                   </div>
                 </div>
               )}
@@ -1074,7 +1069,7 @@ export default function AIAssistantClient() {
 
           {/* Input bar */}
           <div className="border-t border-white/10 bg-[#05050a]/95 backdrop-blur-xl shrink-0">
-            <div className="px-4 sm:px-5 py-3 sm:py-4">
+            <div className="max-w-4xl mx-auto px-8 py-3 sm:py-4 lg:px-16 lg:ml-18.5">
               <div className="flex gap-2 items-end">
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl flex items-end gap-3 px-4 py-3 min-w-0 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all duration-200">
                   <div className="flex-1 min-w-0">

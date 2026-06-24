@@ -44,6 +44,7 @@ import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 import SalonOwnerPreview from "@/components/salon/SalonOwnerPreview";
 import LocationPicker from "@/components/shared/LocationPicker";
+import PaymentProcessor from "@/components/payment/PaymentProcessor";
 
 const QrScanner = dynamic(() => import("@/components/shared/QrScanner"), { ssr: false });
 
@@ -127,24 +128,165 @@ function ConfirmDialog({ open, onClose, onConfirm, title, message }: {
   );
 }
 
+// ── Reviews Section Component ──────────────────────────────────────────────────
+function ReviewsSection({ salonId, salonName }: { salonId: string | null; salonName: string }) {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState({ total: 0, average: 0, distribution: [0, 0, 0, 0, 0] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!salonId) return;
+    fetchReviews();
+  }, [salonId]);
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/salon-owner/reviews");
+      const data = await res.json();
+      if (res.ok) {
+        setReviews(data.reviews || []);
+        setStats(data.statistics || { total: 0, average: 0, distribution: [0, 0, 0, 0, 0] });
+      }
+    } catch (err) {
+      console.error("Failed to fetch reviews:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="glass-card p-5 text-center">
+          <div className="flex items-center justify-center gap-1 mb-2">
+            <Star className="w-6 h-6 fill-yellow-400 text-yellow-400" />
+            <span className="text-4xl font-bold gradient-text">{stats.average.toFixed(1)}</span>
+          </div>
+          <p className="text-white/50 text-sm">Average Rating</p>
+          <p className="text-white/30 text-xs mt-1">{stats.total} reviews</p>
+        </div>
+        
+        <div className="glass-card p-5">
+          <p className="text-white/50 text-xs mb-3">Rating Distribution</p>
+          {[5, 4, 3, 2, 1].map((star) => (
+            <div key={star} className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs text-white/40 w-3">{star}</span>
+              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 rounded-full"
+                  style={{ width: stats.total > 0 ? `${(stats.distribution[star - 1] / stats.total) * 100}%` : "0%" }}
+                />
+              </div>
+              <span className="text-xs text-white/40 w-8 text-right">{stats.distribution[star - 1]}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="glass-card p-5 text-center">
+          <p className="text-4xl font-bold text-emerald-400">{stats.total}</p>
+          <p className="text-white/50 text-sm mt-1">Total Reviews</p>
+          <p className="text-white/30 text-xs mt-1">All time</p>
+        </div>
+      </div>
+
+      {/* Reviews List */}
+      <div className="glass-card p-6">
+        <h2 className="font-semibold text-white mb-4">Recent Reviews</h2>
+        {reviews.length === 0 ? (
+          <div className="text-center py-8">
+            <Star className="w-12 h-12 text-white/20 mx-auto mb-3" />
+            <p className="text-white/30">No reviews yet</p>
+            <p className="text-white/20 text-sm mt-1">Reviews from customers will appear here</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-start gap-3 mb-3">
+                  {review.user?.avatar_url ? (
+                    <img
+                      src={review.user.avatar_url}
+                      alt={review.user.full_name}
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 shrink-0">
+                      {review.user?.full_name?.[0] || "?"}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div>
+                        <p className="font-semibold text-white text-sm">{review.user?.full_name || "Anonymous"}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                "w-3.5 h-3.5",
+                                i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-white/20"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-xs text-white/30 shrink-0">
+                        {new Date(review.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                    <p className="text-white/70 text-sm mt-2">{review.comment}</p>
+                    {review.images && review.images.length > 0 && (
+                      <div className="flex gap-2 mt-3">
+                        {review.images.slice(0, 3).map((img: string, idx: number) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt="Review"
+                            className="w-20 h-20 rounded-lg object-cover border border-white/10"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
 const tabs = [
   { id: "overview",  label: "Overview",  icon: LayoutDashboard },
-  { id: "bookings",  label: "Bookings",  icon: Calendar },
   { id: "scan-qr",   label: "Scan QR",   icon: QrCode },
   { id: "my-salon",  label: "My Salon",  icon: Store },
+  { id: "my-plan",   label: "My Plan",   icon: Crown },
   { id: "services",  label: "Services",  icon: Scissors },
   { id: "staff",     label: "Staff",     icon: Users },
   { id: "reviews",   label: "Reviews",   icon: Star },
   { id: "analytics", label: "Analytics", icon: BarChart2 },
-  { id: "my-plan",   label: "My Plan",   icon: Crown },
 ];
 
 export default function SalonOwnerDashboard() {
   const { profile } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const [mounted, setMounted] = useState(false);
 
   // Salon
   const [salonData, setSalonData] = useState<SalonData | null>(null);
@@ -192,9 +334,25 @@ export default function SalonOwnerDashboard() {
   const [planData, setPlanData] = useState<any>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planUpgrading, setPlanUpgrading] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrderData, setPaymentOrderData] = useState<any>(null);
 
   const salonId = salonData?.id ?? null;
   const salonName = salonData?.name ?? "My Salon";
+
+  // ── Handle mounting and URL tab parameter ────────────────────────────────────
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['overview', 'scan-qr', 'my-salon', 'services', 'staff', 'reviews', 'my-plan', 'analytics'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [mounted]);
 
   // ── Fetch salon ──────────────────────────────────────────────────────────────
   const fetchSalon = useCallback(async () => {
@@ -245,7 +403,7 @@ export default function SalonOwnerDashboard() {
   }, [salonId]);
 
   useEffect(() => {
-    if (salonId && ["overview", "bookings", "scan-qr"].includes(activeTab)) {
+    if (salonId && ["overview", "scan-qr"].includes(activeTab)) {
       fetchLiveBookings();
     }
   }, [salonId, activeTab, fetchLiveBookings]);
@@ -457,18 +615,50 @@ export default function SalonOwnerDashboard() {
   const handleUpgradePlan = async (tier: string) => {
     setPlanUpgrading(tier);
     try {
-      const res = await fetch("/api/salon-owner/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tier }) });
+      console.log('[SalonOwner] Initiating plan upgrade to:', tier);
+      const res = await fetch("/api/salon-owner/plan", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ tier }) 
+      });
+      
+      console.log('[SalonOwner] Response status:', res.status);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success(data.message);
-      fetchPlan();
-      fetchSalon();
-    } catch (err: any) { toast.error(err.message); }
+      console.log('[SalonOwner] Response data:', data);
+      
+      if (!res.ok) {
+        console.error('[SalonOwner] API Error:', data);
+        throw new Error(data.error || "Failed to create payment order");
+      }
+      
+      // Store payment order data and open payment modal
+      setPaymentOrderData(data);
+      setShowPaymentModal(true);
+      toast.success("Payment Initiated...");
+    } catch (err: any) { 
+      console.error('[SalonOwner] Upgrade error:', err);
+      toast.error(err.message || "Failed to upgrade plan"); 
+    }
     finally { setPlanUpgrading(null); }
   };
 
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setPaymentOrderData(null);
+    // Show success animation/message
+    toast.success("🎉 Payment successful! Your plan has been upgraded!");
+    // Refresh data
+    fetchPlan();
+    fetchSalon();
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast.error(error || "Payment failed. Please try again.");
+  };
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  const todayStr = new Date().toISOString().split("T")[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
   const todayBookings = liveBookings.filter(b => b.booking_date === todayStr);
   const confirmedToday = todayBookings.filter(b => b.status === "confirmed" && !b.qr_verified);
   const verifiedToday = todayBookings.filter(b => b.qr_verified);
@@ -536,7 +726,8 @@ export default function SalonOwnerDashboard() {
           {/* Top bar */}
           <div className="sticky top-0 z-10 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex items-center justify-between">
             <h1 className="font-semibold text-white capitalize">
-              {activeTab === "scan-qr" ? "Scan & Verify QR"
+              {!mounted ? "Dashboard" :
+                activeTab === "scan-qr" ? "Scan & Verify QR"
                 : activeTab === "my-salon" ? "My Salon Info"
                 : activeTab === "my-plan" ? "Subscription Plan"
                 : activeTab}
@@ -704,14 +895,21 @@ export default function SalonOwnerDashboard() {
                     <ScanLine className="w-4 h-4" />Open QR Scanner
                   </Button>
                 </div>
-                {todayBookings.length > 0 && (
+                {liveBookings.length > 0 && (
                   <div className="glass-card overflow-hidden">
-                    <div className="p-4 border-b border-white/10"><h2 className="font-semibold text-white text-sm">Today's Bookings</h2></div>
-                    <div className="divide-y divide-white/5">
-                      {todayBookings.map((b) => {
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                      <h2 className="font-semibold text-white text-sm">All Bookings ({liveBookings.length})</h2>
+                      <span className="text-xs text-white/40">{todayBookings.length} today</span>
+                    </div>
+                    <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto">
+                      {liveBookings.map((b) => {
                         const user = b.user as any; const svc = b.service as any;
                         const isVerified = b.qr_verified || b.status === "completed";
                         const isPending = b.status === "confirmed" && !b.qr_verified;
+                        const bookingDateObj = new Date(b.booking_date + "T00:00:00");
+                        const isToday = bookingDateObj.toDateString() === today.toDateString();
+                        const dateLabel = isToday ? "Today" : bookingDateObj.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+                        
                         return (
                           <div key={b.id} className={cn("flex items-center gap-4 p-4 transition-colors", isVerified ? "opacity-60 bg-emerald-500/3" : "hover:bg-white/3")}>
                             <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0", isVerified ? "bg-emerald-500/20 text-emerald-300" : "bg-purple-500/20 text-purple-300")}>
@@ -719,7 +917,7 @@ export default function SalonOwnerDashboard() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-white text-sm">{user?.full_name ?? "Unknown"}</p>
-                              <p className="text-xs text-white/40">{svc?.name} • {b.time_slot}</p>
+                              <p className="text-xs text-white/40">{svc?.name} • {b.time_slot} • {dateLabel}</p>
                               <p className="text-[10px] text-white/25 font-mono">{b.booking_id}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -997,7 +1195,9 @@ export default function SalonOwnerDashboard() {
                       {staff.length >= staffLimit && staffLimit !== Infinity && <span className="text-amber-400 ml-2">• Upgrade to add more</span>}
                     </p>
                   </div>
-                  
+                  <Button onClick={openAddStaff} disabled={staff.length >= staffLimit && staffLimit !== Infinity} className="gap-1.5">
+                    <Plus className="w-4 h-4" />Add Staff
+                  </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {staffLoading ? (
@@ -1038,6 +1238,11 @@ export default function SalonOwnerDashboard() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* ══ REVIEWS ════════════════════════════════════════════════════ */}
+            {activeTab === "reviews" && (
+              <ReviewsSection salonId={salonId} salonName={salonName} />
             )}
 
             {/* ══ ANALYTICS ══════════════════════════════════════════════════ */}
@@ -1100,7 +1305,16 @@ export default function SalonOwnerDashboard() {
                     </div>
                     {currentPlan !== "ultra" && (
                       <div className="ml-auto">
-                        <Button onClick={() => setActiveTab("my-plan")} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400">
+                        <Button 
+                          onClick={() => {
+                            // Scroll to upgrade cards
+                            const upgradeSection = document.querySelector('[data-upgrade-cards]');
+                            if (upgradeSection) {
+                              upgradeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }} 
+                          className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400"
+                        >
                           <Crown className="w-4 h-4" />Upgrade
                         </Button>
                       </div>
@@ -1132,7 +1346,7 @@ export default function SalonOwnerDashboard() {
                 </div>
 
                 {/* Plan Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-upgrade-cards>
                   {Object.entries(PLAN_CONFIG).map(([tier, plan]) => {
                     const isCurrent = tier === currentPlan;
                     const isHigher = Object.keys(PLAN_CONFIG).indexOf(tier) > Object.keys(PLAN_CONFIG).indexOf(currentPlan);
@@ -1296,6 +1510,32 @@ export default function SalonOwnerDashboard() {
         open={!!deleteStaff} onClose={() => setDeleteStaff(null)} onConfirm={handleDeleteStaff}
         title="Remove Staff Member?" message={`"${deleteStaff?.name}" will be removed from your team. Future bookings with them will need to be reassigned.`}
       />
+
+      {/* Payment Modal for Plan Upgrade */}
+      {showPaymentModal && paymentOrderData && (
+        <Modal 
+          open={showPaymentModal} 
+          onClose={() => setShowPaymentModal(false)} 
+          title={`Upgrade to ${paymentOrderData.planName || 'Premium'}`}
+        >
+          <div className="space-y-4">
+            <div className="glass-card p-4 text-center">
+              <p className="text-white/50 text-sm">Total Amount</p>
+              <p className="text-4xl font-bold gradient-text">₹{paymentOrderData.amount}</p>
+              <p className="text-white/30 text-xs mt-1">Order ID: {paymentOrderData.orderId}</p>
+            </div>
+            
+            <PaymentProcessor
+              amount={paymentOrderData.amount}
+              orderId={paymentOrderData.orderId}
+              type="plan_upgrade_salon"
+              metadata={paymentOrderData.metadata || {}}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

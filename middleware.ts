@@ -1,14 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Routes that require authentication
-const PROTECTED_ROUTES = ["/checkout", "/salon-owner/dashboard", "/salon-owner/register", "/admin"];
-// Routes that require salon_owner role
-const OWNER_ROUTES = ["/salon-owner/dashboard", "/salon-owner/register"];
-// Routes that require admin role
-const ADMIN_ROUTES = ["/admin"];
+// ============================================
+// ROUTE PROTECTION CONFIGURATION
+// ============================================
+
+// Public routes (no authentication required)
+const PUBLIC_ROUTES = [
+  "/",
+  "/landing",
+  "/salons",
+  "/offers",
+  "/debug-auth",
+];
+
 // Auth routes — logged-in users should be redirected away
-const AUTH_ROUTES = ["/auth/login", "/auth/register", "/auth/salon-owner-login"];
+const AUTH_ROUTES = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/salon-owner-login",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+];
+
+// Routes requiring any authenticated user
+const PROTECTED_ROUTES = [
+  "/dashboard",
+  "/profile",
+  "/checkout",
+  "/rewards",
+  "/ai-assistant",
+  "/virtual-tryon",
+  "/upgrade",
+];
+
+// Routes requiring salon_owner or admin role
+const OWNER_ROUTES = [
+  "/salon-owner/dashboard",
+  "/salon-owner/register",
+];
+
+// Routes requiring admin role only
+const ADMIN_ROUTES = [
+  "/admin",
+];
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next();
@@ -52,18 +87,28 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
+  // Check route types
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
   const isOwnerRoute = OWNER_ROUTES.some((r) => pathname.startsWith(r));
   const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
-  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+  const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
+
+  // Allow public routes without authentication
+  if (isPublic && !user) {
+    return res;
+  }
 
   // Redirect logged-in users away from auth pages
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL("/", req.url));
+    // If there's a 'next' param, redirect there, otherwise go home
+    const next = req.nextUrl.searchParams.get("next");
+    const redirectUrl = next && next !== pathname ? next : "/";
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
-  // Redirect unauthenticated users away from protected routes
-  if (!user && isProtected) {
+  // Redirect unauthenticated users to login
+  if (!user && (isProtected || isOwnerRoute || isAdminRoute)) {
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
@@ -71,17 +116,27 @@ export async function middleware(req: NextRequest) {
 
   // Role-based access control for owner/admin routes
   if (user && (isOwnerRoute || isAdminRoute)) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-    if (isAdminRoute && profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-    if (isOwnerRoute && !["salon_owner", "admin"].includes(profile?.role ?? "")) {
-      return NextResponse.redirect(new URL("/", req.url));
+      const userRole = profile?.role;
+
+      // Admin check
+      if (isAdminRoute && userRole !== "admin") {
+        return NextResponse.redirect(new URL("/?error=admin_required", req.url));
+      }
+
+      // Salon owner check (admin can also access)
+      if (isOwnerRoute && !["salon_owner", "admin"].includes(userRole ?? "")) {
+        return NextResponse.redirect(new URL("/?error=owner_access_required", req.url));
+      }
+    } catch (error) {
+      console.error("Role verification failed:", error);
+      return NextResponse.redirect(new URL("/auth/login?error=role_check_failed", req.url));
     }
   }
 

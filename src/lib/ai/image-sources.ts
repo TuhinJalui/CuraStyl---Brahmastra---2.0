@@ -82,60 +82,186 @@ export async function getSearchImages(keywords: string, limit = 6) {
     }
   };
 
-  // Secondary Alternative: DuckDuckGo Image Search (Simple direct scraping)
+  // Secondary Alternative: DuckDuckGo Image Search (Enhanced with better extraction)
   const fetchDuckDuckGoImages = async () => {
     try {
-      // Use DuckDuckGo's direct image search page
+      // DuckDuckGo uses a token-based API that requires extracting vqd from initial request
       const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`;
-      const response = await fetch(searchUrl, {
+      
+      const initialResponse = await fetch(searchUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://duckduckgo.com/',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        }
+      });
+      
+      if (!initialResponse.ok) {
+        console.warn('[DuckDuckGo] Initial request failed:', initialResponse.status);
+        return [];
+      }
+      
+      const html = await initialResponse.text();
+      
+      // Multiple patterns to extract vqd token
+      const vqdPatterns = [
+        /vqd=['"]([0-9\-]+)['"]/i,
+        /vqd=([0-9\-]+)/i,
+        /"vqd":\s*"([0-9\-]+)"/i,
+        /data-vqd=['"]([0-9\-]+)['"]/i,
+      ];
+      
+      let vqd: string | null = null;
+      for (const pattern of vqdPatterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          vqd = match[1];
+          console.log('[DuckDuckGo] Extracted vqd token:', vqd);
+          break;
+        }
+      }
+      
+      if (!vqd) {
+        console.warn('[DuckDuckGo] Could not extract vqd token, trying direct HTML extraction...');
+        
+        // Enhanced direct HTML scraping with better patterns
+        const results: { url: string; alt: string }[] = [];
+        const seenUrls = new Set<string>();
+        
+        // Enhanced patterns to extract image URLs
+        const imagePatterns = [
+          // JSON embedded in script tags
+          /"image":\s*"(https?:\/\/[^"]+\.(jpg|jpeg|png|webp)[^"]*)"/gi,
+          /"thumbnail":\s*"(https?:\/\/[^"]+\.(jpg|jpeg|png|webp)[^"]*)"/gi,
+          /"url":\s*"(https?:\/\/[^"]+\.(jpg|jpeg|png|webp)[^"]*)"/gi,
+          // Data attributes
+          /data-src=["'](https?:\/\/[^"']+\.(jpg|jpeg|png|webp))["']/gi,
+          /data-image=["'](https?:\/\/[^"']+\.(jpg|jpeg|png|webp))["']/gi,
+          // Regular src attributes (last resort)
+          /src=["'](https?:\/\/[^"']+\.(jpg|jpeg|png|webp))["']/gi,
+        ];
+        
+        for (const pattern of imagePatterns) {
+          const matches = [...html.matchAll(pattern)];
+          for (const match of matches) {
+            let url = match[1];
+            
+            // Skip invalid/unwanted URLs
+            if (!url || 
+                url.includes('duckduckgo.com') || 
+                url.includes('favicon') || 
+                url.includes('logo') ||
+                url.includes('icon') ||
+                url.includes('avatar') ||
+                url.includes('blank.') ||
+                url.length < 40) {
+              continue;
+            }
+            
+            // Clean URL
+            url = url
+              .replace(/\\u0026/g, '&')
+              .replace(/\\\//g, '/')
+              .replace(/\\"/g, '"')
+              .replace(/\\/g, '')
+              .trim();
+            
+            if (!seenUrls.has(url) && url.startsWith('http')) {
+              seenUrls.add(url);
+              results.push({ url, alt: query });
+              
+              if (results.length >= limit) break;
+            }
+          }
+          
+          if (results.length >= limit) break;
+        }
+        
+        if (results.length > 0) {
+          console.log('[DuckDuckGo] Extracted via HTML scraping:', results.length);
+          return results;
+        }
+        
+        console.warn('[DuckDuckGo] No images found via scraping');
+        return [];
+      }
+      
+      // Step 2: Use vqd to fetch actual image results from API
+      const apiUrl = `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,&p=1`;
+      
+      const apiResponse = await fetch(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': searchUrl,
+          'X-Requested-With': 'XMLHttpRequest',
+        }
+      });
+      
+      if (!apiResponse.ok) {
+        console.warn('[DuckDuckGo] API request failed:', apiResponse.status);
+        return [];
+      }
+      
+      const data = await apiResponse.json();
+      const results: { url: string; alt: string }[] = [];
+      
+      // Extract images from results
+      if (data.results && Array.isArray(data.results)) {
+        for (const item of data.results) {
+          if (results.length >= limit) break;
+          
+          const imageUrl = item.image || item.thumbnail || item.url;
+          const title = item.title || item.source || query;
+          
+          if (imageUrl && imageUrl.startsWith('http') && !imageUrl.includes('duckduckgo.com')) {
+            results.push({ url: imageUrl, alt: title });
+          }
+        }
+      }
+      
+      console.log('[DuckDuckGo] Fetched via API:', results.length);
+      return results;
+    } catch (err) {
+      console.warn('[DuckDuckGo Error]', String(err).slice(0, 150));
+      return [];
+    }
+  };
+
+  // Tertiary Alternative: Pexels API (Reliable and free)
+  const fetchPexelsImages = async () => {
+    try {
+      // Using Pexels API with a public key
+      const apiKey = process.env.PEXELS_API_KEY || 'Xbgcfm3qLZEI9OXBnN4Nt9wZGXlGBj1xd3aOI5pBP8lQOsSwHhSm0Oqj';
+      const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${Math.min(15, limit)}&orientation=portrait`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': apiKey
         }
       });
       
       if (!response.ok) {
-        console.warn('[DuckDuckGo] Failed with status:', response.status);
+        console.warn('[Pexels] Failed with status:', response.status);
         return [];
       }
       
-      const html = await response.text();
-      const results: { url: string; alt: string }[] = [];
-      const seenUrls = new Set<string>();
+      const data = await response.json();
+      const results = (data.photos || []).slice(0, limit).map((photo: any) => ({
+        url: photo.src?.large || photo.src?.medium || photo.src?.original,
+        alt: photo.alt || query
+      })).filter((img: any) => img.url);
       
-      // Extract image URLs from various patterns in the HTML
-      // Pattern 1: Direct image URLs in thumbnail links
-      const urlPattern = /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?/gi;
-      const matches = html.match(urlPattern) || [];
-      
-      for (const url of matches) {
-        // Skip DuckDuckGo's own assets and tiny images
-        if (url.includes('duckduckgo.com') || 
-            url.includes('icons.') || 
-            url.includes('favicon') ||
-            url.includes('logo') ||
-            url.length < 40) {
-          continue;
-        }
-        
-        // Clean up the URL
-        const cleanUrl = url.split(/[\s"'<>]/)[0];
-        
-        if (!seenUrls.has(cleanUrl) && cleanUrl.startsWith('http')) {
-          seenUrls.add(cleanUrl);
-          results.push({ url: cleanUrl, alt: query });
-          
-          if (results.length >= limit) break;
-        }
-      }
-      
-      console.log('[DuckDuckGo Images] Extracted:', results.length, 'unique images');
+      console.log('[Pexels] Fetched:', results.length);
       return results;
     } catch (err) {
-      console.warn('[DuckDuckGo Images Error]', String(err).slice(0, 150));
+      console.warn('[Pexels Error]', String(err).slice(0, 100));
       return [];
     }
   };
@@ -202,6 +328,7 @@ export async function getSearchImages(keywords: string, limit = 6) {
     fetchGoogleCSE(),
     fetchBingImages(),
     fetchDuckDuckGoImages(),
+    fetchPexelsImages(),
     fetchDirectImageSearch(),
     fetchUnsplash(), // Always run as final fallback
   ]);
@@ -234,8 +361,9 @@ export async function getSearchImages(keywords: string, limit = 6) {
       googleCSE: arrays[0]?.length || 0,
       bing: arrays[1]?.length || 0,
       duckDuckGo: arrays[2]?.length || 0,
-      directSearch: arrays[3]?.length || 0,
-      unsplash: arrays[4]?.length || 0,
+      pexels: arrays[3]?.length || 0,
+      directSearch: arrays[4]?.length || 0,
+      unsplash: arrays[5]?.length || 0,
     }
   });
 

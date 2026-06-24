@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatPrice } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 import { useAuth } from "@/lib/auth/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +20,7 @@ import SearchBar from "@/components/shared/SearchBar";
 import SalonCard from "@/components/shared/SalonCard";
 import SalonCardSkeleton from "@/components/shared/SalonCardSkeleton";
 import BookingReceiptModal from "@/components/booking/BookingReceipt";
+import PaymentProcessor from "@/components/payment/PaymentProcessor";
 
 const statusConfig = {
   confirmed: { label: "Confirmed", color: "emerald", icon: CheckCircle },
@@ -67,10 +69,63 @@ export default function AuthenticatedHome() {
   const [isLoadingRecommended, setIsLoadingRecommended] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null);
+  
+  // Payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrderData, setPaymentOrderData] = useState<any>(null);
+  const [upgrading, setUpgrading] = useState(false);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
   const membershipTier = (profile as any)?.membership_tier ?? "basic";
   const glamPoints = (profile as any)?.glam_points ?? 0;
+
+  // Handle upgrade plan with payment
+  const handleUpgrade = async (tier: string) => {
+    if (tier === "basic") return;
+    
+    setUpgrading(true);
+    setShowUpgradeModal(false);
+    
+    try {
+      const res = await fetch("/api/customer/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create payment order");
+      }
+
+      setPaymentOrderData({
+        orderId: data.orderId,
+        amount: data.amount,
+        tier: data.tier,
+        planName: data.planName,
+        planPrice: data.planPrice,
+      });
+      setShowPaymentModal(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initiate upgrade");
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    setPaymentOrderData(null);
+    toast.success("🎉 Membership upgraded successfully!");
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast.error(error || "Payment failed");
+  };
 
   // Fetch bookings
   const fetchBookings = useCallback(async () => {
@@ -184,10 +239,6 @@ export default function AuthenticatedHome() {
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="max-w-3xl mb-8">
-                <SearchBar />
-              </div>
 
               {/* Stats Cards - Clean like landing page */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -505,15 +556,34 @@ export default function AuthenticatedHome() {
                         ))}
                       </ul>
                       
-                      <Button 
-                        disabled={isCurrentPlan}
-                        className={cn(
-                          "w-full",
-                          tier === "basic" ? "bg-white/10 hover:bg-white/20" : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                        )}
-                      >
-                        {isCurrentPlan ? "Current Plan" : tier === "basic" ? "Downgrade" : "Upgrade"}
-                      </Button>
+                      <Link href={tier === "basic" ? "#" : "/upgrade"}>
+                        <Button 
+                          disabled={isCurrentPlan || upgrading}
+                          onClick={(e) => {
+                            if (tier !== "basic" && !isCurrentPlan) {
+                              e.preventDefault();
+                              handleUpgrade(tier);
+                            }
+                          }}
+                          className={cn(
+                            "w-full",
+                            tier === "basic" ? "bg-white/10 hover:bg-white/20" : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                          )}
+                        >
+                          {upgrading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : isCurrentPlan ? (
+                            "Current Plan"
+                          ) : tier === "basic" ? (
+                            "Downgrade"
+                          ) : (
+                            "Upgrade"
+                          )}
+                        </Button>
+                      </Link>
                     </div>
                   );
                 })}
@@ -533,6 +603,48 @@ export default function AuthenticatedHome() {
           booking={receiptBooking as any}
           onClose={() => setReceiptBooking(null)}
         />
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentOrderData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => {
+          setShowPaymentModal(false);
+          setPaymentOrderData(null);
+        }}>
+          <div 
+            className="relative w-full max-w-md glass-dark rounded-3xl p-6 border border-purple-500/20 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentOrderData(null);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Complete Payment</h2>
+              <p className="text-white/60 text-sm">
+                Upgrading to {paymentOrderData.planName} - ₹{paymentOrderData.planPrice}
+              </p>
+            </div>
+
+            <PaymentProcessor
+              amount={paymentOrderData.amount}
+              orderId={paymentOrderData.orderId}
+              type="plan_upgrade_customer"
+              metadata={{
+                tier: paymentOrderData.tier,
+                tierName: paymentOrderData.planName,
+              }}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+          </div>
+        </div>
       )}
     </>
   );

@@ -65,10 +65,7 @@ export default function Footer() {
               {[
                 { label: "List Your Salon", href: "/auth/register?role=salon_owner" },
                 { label: "Owner Dashboard", href: "/salon-owner/dashboard" },
-                { label: "Pricing Plans", href: "/pricing" },
-                { label: "Partner Program", href: "/partners" },
-                { label: "Marketing Tools", href: "/marketing" },
-                { label: "API Access", href: "/api-docs" },
+                { label: "Pricing Plans", href: "/" },
               ].map((link) => (
                 <li key={link.href}>
                   <Link
@@ -88,15 +85,15 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm text-white/50">
                 <MapPin className="w-4 h-4 text-purple-400 shrink-0" />
-                BKC, Bandra East, Mumbai 400051
+                Fr. Agnel Ashram, Bandstand, Bandra (W). Mumbai 400 050. MH. IN
               </li>
               <li className="flex items-center gap-2 text-sm text-white/50">
                 <Mail className="w-4 h-4 text-purple-400 shrink-0" />
-                hello@mumbai-glamhub.in
+                shreyasmahajan0306@gmail.com
               </li>
               <li className="flex items-center gap-2 text-sm text-white/50">
                 <Phone className="w-4 h-4 text-purple-400 shrink-0" />
-                +91 98765 00000
+                +91 75070 77522
               </li>
             </ul>
             <div className="mt-6">
@@ -116,7 +113,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-white/40 text-sm">
-            © 2025 Mumbai GlamHub. All rights reserved.
+            © 2026 CuraStyl. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             {["Privacy Policy", "Terms of Service", "Refund Policy", "Sitemap"].map((item) => (

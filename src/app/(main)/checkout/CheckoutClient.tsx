@@ -54,7 +54,8 @@ export default function CheckoutClient() {
   const staffName = params.get("staffName") ?? "Any available";
 
   const [coupon, setCoupon] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; type: "pct" | "fixed"; value: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; type: "pct" | "fixed"; value: number; id: string } | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -70,14 +71,44 @@ export default function CheckoutClient() {
   const taxes = Math.round((price - discount) * 0.05);
   const total = price - discount + taxes;
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     const code = coupon.trim().toUpperCase();
-    const found = VALID_COUPONS[code];
-    if (found) {
-      setAppliedCoupon({ code, ...found });
-      toast.success(`Coupon "${code}" applied! You save ${found.type === "pct" ? found.value + "%" : formatPrice(found.value)}`);
-    } else {
-      toast.error("Invalid or expired coupon code");
+    if (!code) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+
+    setValidatingCoupon(true);
+    try {
+      const res = await fetch("/api/bookings/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, amount: price }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid coupon");
+      }
+
+      const couponData = data.coupon;
+      setAppliedCoupon({
+        code: couponData.code,
+        type: couponData.discount_type === "percentage" ? "pct" : "fixed",
+        value: couponData.discount_value,
+        id: couponData.id,
+      });
+
+      const discountAmt = couponData.discount_type === "percentage"
+        ? Math.round((price * couponData.discount_value) / 100)
+        : Math.min(couponData.discount_value, price);
+
+      toast.success(`Coupon "${code}" applied! You save ${couponData.discount_type === "percentage" ? couponData.discount_value + "%" : formatPrice(discountAmt)}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to apply coupon");
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
@@ -396,13 +427,21 @@ export default function CheckoutClient() {
               ) : (
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Enter promo code (try FIRST15)"
+                    placeholder="Enter promo code (e.g., GLAM123ABC)"
                     value={coupon}
                     onChange={(e) => setCoupon(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                    onKeyDown={(e) => e.key === "Enter" && !validatingCoupon && applyCoupon()}
+                    disabled={validatingCoupon}
                     className="font-mono uppercase"
                   />
-                  <Button onClick={applyCoupon} variant="outline" className="shrink-0">Apply</Button>
+                  <Button
+                    onClick={applyCoupon}
+                    disabled={validatingCoupon}
+                    variant="outline"
+                    className="shrink-0"
+                  >
+                    {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                  </Button>
                 </div>
               )}
             </div>

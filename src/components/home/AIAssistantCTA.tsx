@@ -71,7 +71,7 @@ export default function AIAssistantCTA() {
                   <Wand2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-white font-medium text-sm">GlamAI Assistant</p>
+                  <p className="text-white font-medium text-sm">CuraAI Assistant</p>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs text-white/40">Online</span>
@@ -81,7 +81,7 @@ export default function AIAssistantCTA() {
 
               {[
                 { role: "user", msg: "Bridal makeup under ₹8000 near Bandra?" },
-                { role: "ai", msg: "Found 3 perfect matches! Glam Studio by Rashmi (₹4,999 ⭐4.8) and Bridal Bliss Studio (₹6,500 ⭐4.9) are top picks in Bandra with excellent bridal packages." },
+                { role: "ai", msg: "Found 3 perfect matches! Cura Studio by Rashmi (₹4,999 ⭐4.8) and Bridal Bliss Studio (₹6,500 ⭐4.9) are top picks in Bandra with excellent bridal packages." },
                 { role: "user", msg: "Book Bridal Bliss for Dec 20th" },
                 { role: "ai", msg: "✨ I've checked availability for Dec 20th at Bridal Bliss Studio. They have slots at 10:00 AM and 2:00 PM. Which time works for you?" },
               ].map((item, i) => (

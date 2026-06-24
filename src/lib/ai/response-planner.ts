@@ -65,13 +65,16 @@ export function planResponse(intent: QueryIntent, userMessage: string, detectedG
   if (intent.type === 'hairstyle') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count based on query specificity
-    if (queryLower.includes('types') || queryLower.includes('different') || queryLower.includes('variety')) {
-      plan.imageCount = 12; // Show more variety
-    } else if (queryLower.includes('best') || queryLower.includes('recommend')) {
-      plan.imageCount = 6; // Moderate recommendations
+    // Dynamic image count based on query specificity - customers should feel images are generated
+    if (queryLower.includes('types') || queryLower.includes('different') || queryLower.includes('variety') || 
+        queryLower.includes('various') || queryLower.includes('many') || queryLower.includes('all')) {
+      plan.imageCount = 15; // Show maximum variety for exploration queries
+    } else if (queryLower.includes('best') || queryLower.includes('top') || queryLower.includes('recommend')) {
+      plan.imageCount = 8; // Show top recommendations
+    } else if (queryLower.includes('few') || queryLower.includes('some') || queryLower.includes('3') || queryLower.includes('5')) {
+      plan.imageCount = 5; // Show specific requested count
     } else {
-      plan.imageCount = 8; // Default for hairstyle queries
+      plan.imageCount = 10; // Default for hairstyle queries - enough to feel AI-generated
     }
     
     plan.imageKeywords = extractHairstyleKeywords(userMessage);
@@ -145,13 +148,14 @@ Provide actionable guidance.
   else if (intent.type === 'makeup') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count for makeup
-    if (queryLower.includes('looks') || queryLower.includes('styles') || queryLower.includes('types')) {
-      plan.imageCount = 10; // More variety for looks
-    } else if (queryLower.includes('tutorial') || queryLower.includes('how to')) {
-      plan.imageCount = 4; // Fewer for step-by-step
+    // Dynamic image count for makeup - more is better for AI-generated feel
+    if (queryLower.includes('looks') || queryLower.includes('styles') || queryLower.includes('types') || 
+        queryLower.includes('different') || queryLower.includes('variety')) {
+      plan.imageCount = 12; // More variety for exploration
+    } else if (queryLower.includes('tutorial') || queryLower.includes('how to') || queryLower.includes('step')) {
+      plan.imageCount = 6; // Moderate for tutorials
     } else {
-      plan.imageCount = 6; // Default
+      plan.imageCount = 8; // Default - feels more AI-generated
     }
     
     plan.imageKeywords = extractMakeupKeywords(userMessage);
@@ -201,11 +205,13 @@ Where to find products and salons.
   else if (intent.type === 'skincare') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count for skincare
-    if (queryLower.includes('routine') || queryLower.includes('products')) {
-      plan.imageCount = 8; // Show product examples
+    // Dynamic image count for skincare - visual results are key
+    if (queryLower.includes('routine') || queryLower.includes('products') || queryLower.includes('types')) {
+      plan.imageCount = 10; // Show product/result examples
+    } else if (queryLower.includes('treatment') || queryLower.includes('facial')) {
+      plan.imageCount = 8; // Treatment examples
     } else {
-      plan.imageCount = 4; // Treatment examples
+      plan.imageCount = 6; // Default skincare examples
     }
     
     plan.imageKeywords = extractSkincareKeywords(userMessage);
