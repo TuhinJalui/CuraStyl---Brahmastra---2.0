@@ -7,16 +7,6 @@
 
 import type { QueryIntent } from './intent-detector';
 
-function extractRequestedVisualCount(message: string): number | null {
-  const normalized = (message || '').toLowerCase();
-  const match = normalized.match(/\b(\d{1,2})\s+(?:images?|photos?|styles?|hairstyles?|looks?)\b/);
-  if (!match) return null;
-
-  const parsed = Number(match[1]);
-  if (!Number.isFinite(parsed)) return null;
-  return Math.max(3, Math.min(parsed, 18));
-}
-
 export interface ResponsePlan {
   // Image strategy
   shouldFetchImages: boolean;
@@ -70,28 +60,21 @@ export function planResponse(intent: QueryIntent, userMessage: string, detectedG
 
   // Create lowercase version of user message for easier matching
   const queryLower = userMessage.toLowerCase();
-  const requestedImageCount = extractRequestedVisualCount(userMessage);
 
   // === HAIRSTYLE QUERIES ===
   if (intent.type === 'hairstyle') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count based on query specificity - customers should feel images are generated
-    if (requestedImageCount) {
-      plan.imageCount = requestedImageCount;
-    } else if (queryLower.includes('types') || queryLower.includes('different') || queryLower.includes('variety') || 
-        queryLower.includes('various') || queryLower.includes('many') || queryLower.includes('all') ||
-        queryLower.includes('popular') || queryLower.includes('trending')) {
-      plan.imageCount = 15; // Show maximum variety for exploration queries
-    } else if (queryLower.includes('best') || queryLower.includes('top') || queryLower.includes('recommend')) {
-      plan.imageCount = 8; // Show top recommendations
-    } else if (queryLower.includes('few') || queryLower.includes('some') || queryLower.includes('3') || queryLower.includes('5')) {
-      plan.imageCount = 5; // Show specific requested count
+    // Dynamic image count based on query specificity
+    if (queryLower.includes('types') || queryLower.includes('different') || queryLower.includes('variety')) {
+      plan.imageCount = 12; // Show more variety
+    } else if (queryLower.includes('best') || queryLower.includes('recommend')) {
+      plan.imageCount = 6; // Moderate recommendations
     } else {
-      plan.imageCount = 10; // Default for hairstyle queries - enough to feel AI-generated
+      plan.imageCount = 8; // Default for hairstyle queries
     }
     
-    plan.imageKeywords = extractHairstyleKeywords(userMessage, detectedGender);
+    plan.imageKeywords = extractHairstyleKeywords(userMessage);
     plan.responseTemplate = 'hairstyle';
     plan.aiGuidance = `
 You are providing hairstyle recommendations. Follow this format:
@@ -162,16 +145,13 @@ Provide actionable guidance.
   else if (intent.type === 'makeup') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count for makeup - more is better for AI-generated feel
-    if (requestedImageCount) {
-      plan.imageCount = requestedImageCount;
-    } else if (queryLower.includes('looks') || queryLower.includes('styles') || queryLower.includes('types') || 
-        queryLower.includes('different') || queryLower.includes('variety')) {
-      plan.imageCount = 12; // More variety for exploration
-    } else if (queryLower.includes('tutorial') || queryLower.includes('how to') || queryLower.includes('step')) {
-      plan.imageCount = 6; // Moderate for tutorials
+    // Dynamic image count for makeup
+    if (queryLower.includes('looks') || queryLower.includes('styles') || queryLower.includes('types')) {
+      plan.imageCount = 10; // More variety for looks
+    } else if (queryLower.includes('tutorial') || queryLower.includes('how to')) {
+      plan.imageCount = 4; // Fewer for step-by-step
     } else {
-      plan.imageCount = 8; // Default - feels more AI-generated
+      plan.imageCount = 6; // Default
     }
     
     plan.imageKeywords = extractMakeupKeywords(userMessage);
@@ -221,15 +201,11 @@ Where to find products and salons.
   else if (intent.type === 'skincare') {
     plan.shouldFetchImages = true;
     
-    // Dynamic image count for skincare - visual results are key
-    if (requestedImageCount) {
-      plan.imageCount = requestedImageCount;
-    } else if (queryLower.includes('routine') || queryLower.includes('products') || queryLower.includes('types')) {
-      plan.imageCount = 10; // Show product/result examples
-    } else if (queryLower.includes('treatment') || queryLower.includes('facial')) {
-      plan.imageCount = 8; // Treatment examples
+    // Dynamic image count for skincare
+    if (queryLower.includes('routine') || queryLower.includes('products')) {
+      plan.imageCount = 8; // Show product examples
     } else {
-      plan.imageCount = 6; // Default skincare examples
+      plan.imageCount = 4; // Treatment examples
     }
     
     plan.imageKeywords = extractSkincareKeywords(userMessage);
@@ -338,18 +314,13 @@ What the user should do next.
 /**
  * Extract hairstyle-specific keywords
  */
-function extractHairstyleKeywords(query: string, detectedGender?: 'male' | 'female' | null): string {
+function extractHairstyleKeywords(query: string): string {
   const normalized = query.toLowerCase();
 
   // Detect gender first for better targeting
-  let isMen = detectedGender === 'male';
-  
-  // Fallback to text detection if no gender from image
-  if (!isMen && detectedGender !== 'female') {
-    isMen = normalized.includes('men') || normalized.includes('male') || normalized.includes('man') || 
-                  normalized.includes('boy') || normalized.includes('guy') || normalized.includes('beard') ||
-                  normalized.includes('mustache') || normalized.includes('barber');
-  }
+  const isMen = normalized.includes('men') || normalized.includes('male') || normalized.includes('man') || 
+                normalized.includes('boy') || normalized.includes('guy') || normalized.includes('beard') ||
+                normalized.includes('mustache') || normalized.includes('barber');
   
   const genderPrefix = isMen ? 'men' : 'women';
 

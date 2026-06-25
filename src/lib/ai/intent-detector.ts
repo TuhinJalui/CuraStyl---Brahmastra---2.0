@@ -16,75 +16,6 @@ export interface QueryIntent {
   details: Record<string, any>;
 }
 
-const SEARCH_STOPWORDS = new Set([
-  'the', 'a', 'an', 'in', 'on', 'for', 'to', 'of', 'is', 'are', 'i', 'me', 'my', 'you', 'your',
-  'and', 'or', 'that', 'this', 'what', 'which', 'who', 'why', 'how', 'when', 'where', 'with',
-  'without', 'do', 'does', 'did', 'can', 'could', 'should', 'would', 'will', 'shall', 'have',
-  'has', 'had', 'be', 'being', 'am', 'been', 'by', 'from', 'at', 'as', 'but', 'about', 'so',
-  'if', 'than', 'just', 'want', 'need', 'find', 'search', 'show', 'tell', 'give', 'get', 'make',
-  'look', 'see', 'know', 'think', 'suggest', 'suggestion', 'suggestions', 'please', 'bro',
-  'broo', 'different', 'types', 'various', 'many', 'popular',
-]);
-
-const MALE_INDICATORS = ['men', 'male', 'man', 'boy', 'guy', 'barber', 'gentlemen', 'him', 'his'];
-const FEMALE_INDICATORS = ['women', 'woman', 'female', 'girl', 'lady', 'ladies', 'her', 'she'];
-
-export function stripRichContent(input: string): string {
-  if (!input) return '';
-
-  return input
-    .replace(/<img[^>]*>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/p>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-export function detectGenderPreferenceFromText(
-  query: string,
-  detectedGender?: 'male' | 'female' | null
-): 'male' | 'female' | null {
-  if (detectedGender === 'male' || detectedGender === 'female') {
-    return detectedGender;
-  }
-
-  const normalized = stripRichContent(query).toLowerCase();
-  const maleCount = MALE_INDICATORS.filter((word) => normalized.includes(word)).length;
-  const femaleCount = FEMALE_INDICATORS.filter((word) => normalized.includes(word)).length;
-
-  if (maleCount > femaleCount && maleCount > 0) return 'male';
-  if (femaleCount > maleCount && femaleCount > 0) return 'female';
-  return null;
-}
-
-function extractMeaningfulTokens(query: string, maxTokens = 6): string[] {
-  const normalized = stripRichContent(query).toLowerCase();
-
-  return normalized
-    .replace(/[^\w\s]/g, ' ')
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !SEARCH_STOPWORDS.has(word))
-    .slice(0, maxTokens);
-}
-
-function hasAny(normalized: string, words: string[]): boolean {
-  return words.some((word) => normalized.includes(word));
-}
-
-function buildSearchQuery(parts: Array<string | undefined | null>): string {
-  return Array.from(
-    new Set(
-      parts
-        .flatMap((part) => String(part || '').split(/\s+/))
-        .map((part) => part.trim())
-        .filter(Boolean)
-    )
-  ).join(' ');
-}
-
 // Keywords mapped to intent types
 const INTENT_KEYWORDS = {
   hairstyle: [
@@ -145,9 +76,7 @@ const VIRTUAL_TRYON_KEYWORDS = [
  * Detect intent from user query
  */
 export function detectIntent(query: string): QueryIntent {
-  const normalizedQuery = stripRichContent(query);
-
-  if (!normalizedQuery) {
+  if (!query) {
     return {
       type: 'beauty_general',
       confidence: 0,
@@ -159,7 +88,7 @@ export function detectIntent(query: string): QueryIntent {
     };
   }
 
-  const normalized = normalizedQuery.toLowerCase().trim();
+  const normalized = query.toLowerCase().trim();
   const words = normalized.split(/\s+/);
 
   // Check for each intent type
@@ -209,87 +138,92 @@ export function detectIntent(query: string): QueryIntent {
 /**
  * Get image search keywords from query
  */
-export function extractImageSearchKeywords(query: string, intentType: QueryIntent['type'], detectedGender?: 'male' | 'female' | null): string {
-  const normalized = stripRichContent(query).toLowerCase().trim();
-  const resolvedGender = detectGenderPreferenceFromText(normalized, detectedGender);
-  const isMen = resolvedGender === 'male';
+export function extractImageSearchKeywords(query: string, intentType: QueryIntent['type']): string {
+  const normalized = query.toLowerCase().trim();
+
+  // Detect gender for better targeting
+  const isMen = normalized.includes('men') || normalized.includes('male') || normalized.includes('man') || 
+                normalized.includes('boy') || normalized.includes('guy') || normalized.includes('beard') ||
+                normalized.includes('mustache') || normalized.includes('barber');
+  
   const genderPrefix = isMen ? 'men' : 'women';
-  const descriptiveTokens = extractMeaningfulTokens(normalized, 8);
 
   // Map intent types to default search keywords
   const defaults: Record<QueryIntent['type'], string> = {
-    hairstyle: `${genderPrefix} hairstyles popular trending`,
-    makeup: `${genderPrefix} makeup looks inspiration`,
-    skincare: 'skincare facial treatment results',
-    salon_search: 'salon interior professional',
-    beauty_general: 'beauty styling professional',
+    hairstyle: `${genderPrefix} hairstyle`,
+    makeup: `${genderPrefix} makeup looks`,
+    skincare: 'skincare facial treatment',
+    salon_search: 'salon interior',
+    beauty_general: 'beauty tips',
     off_topic: 'beauty',
   };
 
   // Extract specific keywords for hairstyle queries
   if (intentType === 'hairstyle') {
-    const wantsVariety = hasAny(normalized, ['types', 'different', 'various', 'variety', 'many', 'all kinds', 'popular', 'trending']);
-    const wantsSuggestion = hasAny(normalized, ['suggest', 'recommend', 'suit', 'best']);
-    const faceShapeDescriptors = ['oval face', 'round face', 'square face', 'heart face', 'diamond face', 'long face', 'oblong face'];
-    const hairDescriptors = ['curly', 'wavy', 'straight', 'coily', 'thick', 'thin', 'fine', 'short', 'medium', 'long'];
-    const hairstyleNames = isMen
-      ? ['fade', 'undercut', 'buzz cut', 'crew cut', 'pompadour', 'quiff', 'comb over', 'taper', 'side part', 'slick back', 'textured crop', 'french crop', 'man bun']
-      : ['bob', 'pixie', 'layers', 'bangs', 'shag', 'lob', 'blunt', 'wolf cut', 'butterfly', 'braids', 'updo', 'curtain bangs', 'beach waves'];
+    // Check for "types of" queries
+    if (normalized.includes('types') || normalized.includes('different') || normalized.includes('various')) {
+      return `different types of ${genderPrefix} hairstyles`;
+    }
 
+    // Extract specific hairstyle names
+    const hairstyleNames = [
+      'bob', 'pixie', 'fade', 'undercut', 'buzz', 'crew cut', 'pompadour', 
+      'quiff', 'layers', 'bangs', 'fringe', 'shag', 'mullet', 'mohawk',
+      'braids', 'dreads', 'locs', 'afro', 'cornrows',
+    ];
+    
     const foundStyles = hairstyleNames.filter((name) => normalized.includes(name));
-    const foundHairDescriptors = hairDescriptors.filter((name) => normalized.includes(name));
-    const foundFaceShape = faceShapeDescriptors.find((name) => normalized.includes(name));
-
-    if (wantsVariety) {
-      return buildSearchQuery([
-        genderPrefix,
-        foundHairDescriptors[0],
-        foundFaceShape,
-        'hairstyles',
-        'popular',
-        'trending',
-        'different',
-        foundStyles[0],
-      ]);
-    }
-
     if (foundStyles.length > 0) {
-      return buildSearchQuery([
-        genderPrefix,
-        foundStyles.slice(0, 2).join(' '),
-        'hairstyle',
-        foundHairDescriptors[0],
-        foundFaceShape,
-        wantsSuggestion ? 'best' : null,
-      ]);
+      return `${genderPrefix} ${foundStyles.slice(0, 2).join(' ')} hairstyle`;
     }
 
-    return buildSearchQuery([
-      genderPrefix,
-      foundHairDescriptors[0],
-      foundFaceShape,
-      'hairstyles',
-      wantsSuggestion ? 'best' : 'ideas',
-      wantsVariety ? 'popular' : null,
-      descriptiveTokens.slice(0, 2).join(' '),
-    ]) || defaults[intentType];
+    // Extract hair characteristics
+    if (normalized.includes('curly') || normalized.includes('wavy')) return `${genderPrefix} curly hairstyles`;
+    if (normalized.includes('straight')) return `${genderPrefix} straight hairstyles`;
+    if (normalized.includes('thick')) return `${genderPrefix} thick hair hairstyles`;
+    if (normalized.includes('thin') || normalized.includes('fine')) return `${genderPrefix} thin hair hairstyles`;
+    if (normalized.includes('long')) return `${genderPrefix} long hairstyles`;
+    if (normalized.includes('short')) return `${genderPrefix} short hairstyles`;
+    if (normalized.includes('medium')) return `${genderPrefix} medium hairstyles`;
+    
+    // Extract face shape
+    if (normalized.includes('oval face')) return `${genderPrefix} hairstyles oval face`;
+    if (normalized.includes('round face')) return `${genderPrefix} hairstyles round face`;
+    if (normalized.includes('square face')) return `${genderPrefix} hairstyles square face`;
+    if (normalized.includes('heart face')) return `${genderPrefix} hairstyles heart face`;
+    
+    // Hair color related
+    if (normalized.includes('color') || normalized.includes('dye')) return `${genderPrefix} hair color styles`;
+    
+    return `${genderPrefix} hairstyle ideas`;
   }
 
   // Extract specific keywords for makeup queries
   if (intentType === 'makeup') {
-    const styleDescriptors = ['bridal', 'wedding', 'party', 'natural', 'simple', 'smokey', 'smoky', 'bold', 'nude', 'minimal', 'glam'];
-    const foundDescriptor = styleDescriptors.find((word) => normalized.includes(word));
-    return buildSearchQuery([
-      genderPrefix,
-      foundDescriptor,
-      'makeup',
-      hasAny(normalized, ['types', 'different', 'various', 'popular']) ? 'looks trending' : 'looks',
-      descriptiveTokens.slice(0, 2).join(' '),
-    ]) || defaults[intentType];
+    if (normalized.includes('bridal')) return 'bridal makeup looks';
+    if (normalized.includes('party')) return 'party makeup looks';
+    if (normalized.includes('natural')) return 'natural makeup tutorial';
+    if (normalized.includes('smokey')) return 'smokey eye makeup';
+    if (normalized.includes('bold')) return 'bold makeup looks';
+    return `${genderPrefix} makeup inspiration`;
   }
 
-  if (descriptiveTokens.length > 0) {
-    return buildSearchQuery([...descriptiveTokens, genderPrefix, 'style']);
+  // Extract meaningful keywords from query
+  const stopwords = new Set([
+    'the', 'a', 'an', 'in', 'on', 'for', 'to', 'of', 'is', 'are', 'i', 'me', 'my', 'you', 'and', 'or',
+    'that', 'this', 'what', 'which', 'who', 'why', 'how', 'when', 'where', 'with', 'without',
+    'do', 'does', 'did', 'can', 'could', 'should', 'would', 'will', 'shall', 'have', 'has', 'had',
+    'be', 'being', 'am', 'been', 'by', 'from', 'at', 'as', 'but', 'about', 'so', 'if', 'than', 'just',
+  ]);
+
+  const words = normalized
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopwords.has(w))
+    .slice(0, 5);
+
+  if (words.length > 0) {
+    return words.join(' ');
   }
 
   return defaults[intentType];
