@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <Scissors className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold gradient-text">Mumbai GlamHub</span>
+            <span className="text-2xl font-bold gradient-text">CuraStyl</span>
           </Link>
         </div>
         <div className="glass-card p-8">

@@ -171,7 +171,7 @@ function RegisterForm() {
             )}>
               {role === "salon_owner" ? <Briefcase className="w-6 h-6 text-white" /> : <Scissors className="w-6 h-6 text-white" />}
             </div>
-            <span className="text-2xl font-bold gradient-text">Mumbai GlamHub</span>
+            <span className="text-2xl font-bold gradient-text">CuraStyl</span>
           </Link>
         </div>
 

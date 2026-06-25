@@ -522,7 +522,7 @@ export async function POST(req: NextRequest) {
     // Only fetch images for queries that actually need visual content
     if (responsePlan.shouldFetchImages && responsePlan.imageCount > 0) {
       try {
-        const keywords = responsePlan.imageKeywords || extractImageSearchKeywords(lastContent, queryIntent.type, detectedGender);
+        const keywords = responsePlan.imageKeywords || extractImageSearchKeywords(lastContent, queryIntent.type);
         
         // Skip image fetching for non-visual queries like "what can you do", "hello", etc.
         const nonVisualKeywords = ['what can you', 'who are you', 'hello', 'hi', 'help', 'how are you', 'thanks', 'thank you'];

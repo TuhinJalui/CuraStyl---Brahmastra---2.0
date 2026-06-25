@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createServiceClient } from "@/lib/supabase/server-helpers";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -42,7 +43,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Get all reviews for this salon with user details
-  const { data: reviews, error } = await supabase
+  const serviceSupabase = createServiceClient();
+  const { data: reviews, error } = await serviceSupabase
     .from("reviews")
     .select(`
       *,

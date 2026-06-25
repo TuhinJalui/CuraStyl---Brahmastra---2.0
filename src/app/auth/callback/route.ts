@@ -45,6 +45,18 @@ export async function GET(request: NextRequest) {
       // Use existing role if profile exists, otherwise use the role from URL parameter
       const finalRole = existingProfile?.role ?? role;
 
+      // Check for role mismatch
+      if (existingProfile) {
+        if (existingProfile.role === "customer" && role === "salon_owner") {
+          await supabase.auth.signOut();
+          return NextResponse.redirect(`${siteUrl}/auth/salon-owner-login?error=customer_mismatch`);
+        }
+        if (["salon_owner", "admin"].includes(existingProfile.role) && role === "customer") {
+          await supabase.auth.signOut();
+          return NextResponse.redirect(`${siteUrl}/auth/login?error=salon_owner_mismatch`);
+        }
+      }
+
       // Auto-save profile details from Google OAuth
       const meta = data.user.user_metadata ?? {};
       const { error: profileError } = await supabase.from("profiles").upsert(

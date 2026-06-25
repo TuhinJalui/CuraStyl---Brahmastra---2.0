@@ -67,22 +67,29 @@ export default function RouteGuard({
           return;
         }
 
-        // If role required, check it
+        // Fetch user profile to verify role
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        const userRole = (profile?.role || "customer") as UserRole;
+        
+        // Define allowed roles based on props
+        let allowedRoles: UserRole[] = ["customer", "admin"];
         if (requiredRole) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
+          allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+        }
 
-          const userRole = profile?.role as UserRole;
-          const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-
-          if (!userRole || !allowedRoles.includes(userRole)) {
-            // Unauthorized - redirect home with error
-            router.push("/?error=access_denied");
-            return;
+        if (!allowedRoles.includes(userRole)) {
+          // Role mismatch redirect
+          if (userRole === "salon_owner") {
+            router.push("/salon-owner/dashboard");
+          } else {
+            router.push("/dashboard");
           }
+          return;
         }
 
         // Authorized

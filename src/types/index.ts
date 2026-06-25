@@ -185,6 +185,7 @@ export interface AIMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  images?: any[];
 }
 
 export interface SalonStats {

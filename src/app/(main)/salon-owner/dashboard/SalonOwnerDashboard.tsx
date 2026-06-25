@@ -275,11 +275,11 @@ const tabs = [
   { id: "overview",  label: "Overview",  icon: LayoutDashboard },
   { id: "scan-qr",   label: "Scan QR",   icon: QrCode },
   { id: "my-salon",  label: "My Salon",  icon: Store },
-  { id: "my-plan",   label: "My Plan",   icon: Crown },
   { id: "services",  label: "Services",  icon: Scissors },
   { id: "staff",     label: "Staff",     icon: Users },
   { id: "reviews",   label: "Reviews",   icon: Star },
   { id: "analytics", label: "Analytics", icon: BarChart2 },
+  { id: "my-plan",   label: "My Plan",   icon: Crown },
 ];
 
 export default function SalonOwnerDashboard() {
@@ -387,48 +387,17 @@ export default function SalonOwnerDashboard() {
   const fetchLiveBookings = useCallback(async () => {
     if (!salonId) return;
     setBookingsLoading(true);
-    const supabase = createClient();
-    const { data: bookings, error } = await supabase
-      .from("bookings")
-      .select(`*`)
-      .eq("salon_id", salonId)
-      .order("booking_date", { ascending: false })
-      .order("time_slot", { ascending: false })
-      .limit(200);
-    
-    console.log("fetchLiveBookings - bookings:", bookings);
-    console.log("fetchLiveBookings - error:", error);
-    
-    if (!bookings || bookings.length === 0) {
+    try {
+      const res = await fetch("/api/salon-owner/bookings");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch bookings");
+      setLiveBookings(data.bookings || []);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Failed to load bookings");
+    } finally {
       setBookingsLoading(false);
-      return;
     }
-    
-    // Fetch all related data manually
-    const [
-      { data: profiles },
-      { data: services },
-      { data: staffList }
-    ] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, email, phone, avatar_url").in("id", bookings.map(b => b.user_id).filter(Boolean)),
-      supabase.from("services").select("id, name, category, duration").in("id", bookings.map(b => b.service_id).filter(Boolean)),
-      supabase.from("staff").select("id, name, role").in("id", bookings.map(b => b.staff_id).filter(Boolean)),
-    ]);
-    
-    const profileMap = (profiles || []).reduce((acc, p) => { acc[p.id] = p; return acc; }, {} as any);
-    const serviceMap = (services || []).reduce((acc, s) => { acc[s.id] = s; return acc; }, {} as any);
-    const staffMap = (staffList || []).reduce((acc, s) => { acc[s.id] = s; return acc; }, {} as any);
-    
-    const fullData = bookings.map(booking => ({
-      ...booking,
-      user: profileMap[booking.user_id] || null,
-      service: serviceMap[booking.service_id] || null,
-      staff: staffMap[booking.staff_id] || null,
-    }));
-    
-    console.log("Full data with all relations:", fullData);
-    setLiveBookings(fullData as unknown as LiveBooking[]);
-    setBookingsLoading(false);
   }, [salonId]);
 
   useEffect(() => {

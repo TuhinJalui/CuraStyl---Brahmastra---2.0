@@ -114,8 +114,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Role-based access control for owner/admin routes
-  if (user && (isOwnerRoute || isAdminRoute)) {
+  // Role-based access control for owner/admin/customer routes
+  if (user) {
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -125,14 +125,19 @@ export async function middleware(req: NextRequest) {
 
       const userRole = profile?.role;
 
-      // Admin check
-      if (isAdminRoute && userRole !== "admin") {
-        return NextResponse.redirect(new URL("/?error=admin_required", req.url));
+      // 1. Owner routes check: redirect non-owners to customer dashboard
+      if (isOwnerRoute && !["salon_owner", "admin"].includes(userRole ?? "")) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
       }
 
-      // Salon owner check (admin can also access)
-      if (isOwnerRoute && !["salon_owner", "admin"].includes(userRole ?? "")) {
-        return NextResponse.redirect(new URL("/?error=owner_access_required", req.url));
+      // 2. Admin routes check: redirect non-admins to customer dashboard
+      if (isAdminRoute && userRole !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+
+      // 3. Customer protected routes check: redirect salon owners to owner dashboard
+      if (isProtected && userRole === "salon_owner") {
+        return NextResponse.redirect(new URL("/salon-owner/dashboard", req.url));
       }
     } catch (error) {
       console.error("Role verification failed:", error);

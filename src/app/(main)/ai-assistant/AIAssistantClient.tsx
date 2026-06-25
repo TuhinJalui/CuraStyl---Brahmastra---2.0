@@ -19,14 +19,15 @@ import { useAIAnalytics } from "@/lib/ai/analytics";
 import { cn } from "@/lib/utils";
 import type { AIMessage } from "@/types";
 
-// Image Carousel Component - Compact inline display
+// Image Carousel Component - Compact inline display matching user chat box image size
 function ImageCarousel({ images }: { images: any[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   
   if (!images || images.length === 0) return null;
   
   const currentImage = images[currentIndex];
-  const imageTitle = currentImage.alt || `Image ${currentIndex + 1}`;
+  const imageUrl = typeof currentImage === 'string' ? currentImage : (currentImage?.url || currentImage?.image || '');
+  const imageTitle = typeof currentImage === 'string' ? `Image ${currentIndex + 1}` : (currentImage?.title || currentImage?.alt || `Image ${currentIndex + 1}`);
   
   const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -39,10 +40,10 @@ function ImageCarousel({ images }: { images: any[] }) {
   return (
     <div className="w-full">
       <div className="flex flex-col items-center gap-3 p-4">
-        {/* Image Display */}
-        <div className="w-full max-w-sm aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 shadow-md">
+        {/* Image Display - same size as user uploaded image (max-w-xs) */}
+        <div className="w-full max-w-xs aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/10 shadow-md">
           <img
-            src={currentImage.url}
+            src={imageUrl}
             alt={imageTitle}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -52,26 +53,28 @@ function ImageCarousel({ images }: { images: any[] }) {
         </div>
         
         {/* Image Title */}
-        <p className="text-white/70 text-sm font-medium text-center">
+        <p className="text-white/70 text-xs font-medium text-center truncate max-w-xs">
           {imageTitle}
         </p>
         
-        {/* Navigation */}
-        <div className="flex items-center gap-3">
+        {/* Navigation - Next/Prev buttons with purple/pink gradient background */}
+        <div className="flex items-center justify-between w-full max-w-xs mt-1">
           <button
             onClick={handlePrev}
-            className="px-3 py-1.5 text-xs rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white font-medium"
+            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-medium shadow-md shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
           >
-            â† Prev
+            ← Prev
           </button>
-          <div className="text-white/50 text-xs font-medium min-w-[40px] text-center">
+          
+          <div className="text-white/60 text-xs font-semibold px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
             {currentIndex + 1} / {images.length}
           </div>
+          
           <button
             onClick={handleNext}
-            className="px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 text-white font-medium"
+            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-medium shadow-md shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
           >
-            Next â†’
+            Next →
           </button>
         </div>
       </div>
@@ -523,7 +526,31 @@ export default function AIAssistantClient() {
       const data = await res.json();
       const aiRaw = data.reply || "Sorry, I couldn't process that.";
       const aiContent = formatAssistantReply(aiRaw);
-      setMessages((m) => [...m, { role: "assistant", content: aiContent, timestamp: new Date() }]);
+
+      // Extract and attach images to the message
+      let messageImages: any[] = [];
+      if (data?.visualElements?.images) {
+        messageImages = data.visualElements.images;
+      } else if (data?.structured?.visualElements?.images) {
+        messageImages = data.structured.visualElements.images;
+      } else {
+        try {
+          const parsedResp = parseAIResponse(aiRaw);
+          if (parsedResp && (parsedResp as any).images) {
+            messageImages = (parsedResp as any).images;
+          }
+        } catch {}
+      }
+
+      setMessages((m) => [
+        ...m, 
+        { 
+          role: "assistant", 
+          content: aiContent, 
+          timestamp: new Date(),
+          images: messageImages
+        }
+      ]);
 
       // attempt to set parsed visuals
       if (data?.visualElements) setParsed(data.visualElements as any);
@@ -970,15 +997,21 @@ export default function AIAssistantClient() {
                         <>
                           {(() => {
                             const { text, cta } = extractCTA(m.content || '');
+                            const images = m.images || (isLast ? ((parsed as any)?.images || (parsed as any)?.visualElements?.images) : null);
                             return (
-                              <>
+                              <div className="space-y-3">
                                 <div className="text-sm leading-relaxed mr-10 whitespace-pre-wrap md:text-xs" dangerouslySetInnerHTML={{ __html: formatContent(text.replace(/\n\n/g, '\n').replace(/([.!?])\n/g, '$1\n')).replace(/\n/g, '<br/>') }} />
                                 {cta && (
-                                  <a href={cta.link} className="inline-block mt-3 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-0.5">
+                                  <a href={cta.link} className="inline-block px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-0.5">
                                     {cta.label}
                                   </a>
                                 )}
-                              </>
+                                {images && images.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-white/5 w-full flex justify-center">
+                                    <ImageCarousel images={images} />
+                                  </div>
+                                )}
+                              </div>
                             );
                           })()}
                         </>
@@ -1022,17 +1055,7 @@ export default function AIAssistantClient() {
                       </div>
                     )}
 
-                    {/* Show image grid inline after assistant message if it has images */}
-              {!isUser && isLast && (
-                (() => {
-                  const images = (parsed as any)?.images || (parsed as any)?.visualElements?.images;
-                  return images && images.length > 0 ? (
-                    <div className="w-full mt-4 pl-14 md:pl-12 sm:pl-11">
-                      <ImageGrid images={images} />
-                    </div>
-                  ) : null;
-                })()
-              )}
+                    {/* Image grid removed in favor of inline ImageCarousel */}
                   </div>
                 );
               })}

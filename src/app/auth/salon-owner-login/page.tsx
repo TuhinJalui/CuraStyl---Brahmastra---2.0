@@ -21,7 +21,16 @@ function SalonOwnerLoginForm() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Show errors from OAuth redirects (e.g. ?error=customer_mismatch)
+  const urlError = searchParams.get("error");
+  const errorMessages: Record<string, string> = {
+    google_oauth_failed: "Google sign-in failed. Please try again.",
+    auth_callback_failed: "Authentication failed. Please try again.",
+    customer_mismatch: "This account is registered as a Customer. Please use the Customer Sign In page instead.",
+  };
+  const [error, setError] = useState<string | null>(
+    urlError ? errorMessages[urlError] ?? "An error occurred. Please try again." : null
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +92,7 @@ function SalonOwnerLoginForm() {
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
               <Briefcase className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold gradient-text">Mumbai GlamHub</span>
+            <span className="text-2xl font-bold gradient-text">CuraStyl</span>
           </Link>
           <p className="text-xs text-amber-400/70 mt-2 flex items-center justify-center gap-1">
             <Scissors className="w-3 h-3" />
@@ -202,7 +211,7 @@ function SalonOwnerLoginForm() {
 
           {/* Register link */}
           <p className="text-center text-sm text-white/40">
-            New to GlamHub?{" "}
+            New to CuraStyl?{" "}
             <Link
               href="/auth/register?role=salon_owner"
               className="text-amber-400 hover:text-amber-300 font-medium transition-colors"
