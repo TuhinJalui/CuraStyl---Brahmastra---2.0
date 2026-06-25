@@ -8,9 +8,11 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/";
   const role = searchParams.get("role") ?? "customer";
 
-  // Use NEXT_PUBLIC_SITE_URL for consistent redirect behavior
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  // Dynamically determine the site URL, bypassing localhost env variables in production
+  const origin = new URL(request.url).origin;
+  const siteUrl = !origin.includes("localhost") 
+    ? origin 
+    : (process.env.NEXT_PUBLIC_SITE_URL || origin);
 
   if (code) {
     const cookieStore = await cookies();

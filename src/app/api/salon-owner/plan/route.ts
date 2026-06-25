@@ -180,8 +180,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const origin = new URL(req.url).origin;
+  const siteUrl = !origin.includes("localhost") 
+    ? origin 
+    : (process.env.NEXT_PUBLIC_SITE_URL || origin);
+
   const orderResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/payment/create-order`,
+    `${siteUrl}/api/payment/create-order`,
     {
       method: "POST",
       headers: {

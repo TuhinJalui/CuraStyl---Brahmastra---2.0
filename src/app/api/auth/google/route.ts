@@ -7,9 +7,11 @@ export async function GET(request: NextRequest) {
   const role = request.nextUrl.searchParams.get("role") ?? "customer";
   const cookieStore = await cookies();
 
-  // Use NEXT_PUBLIC_SITE_URL for consistent redirect behavior across environments
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  // Dynamically determine the site URL, bypassing localhost env variables in production
+  const origin = new URL(request.url).origin;
+  const siteUrl = !origin.includes("localhost") 
+    ? origin 
+    : (process.env.NEXT_PUBLIC_SITE_URL || origin);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
