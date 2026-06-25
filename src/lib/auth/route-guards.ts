@@ -76,7 +76,7 @@ export async function requireAuth(): Promise<AuthResult> {
       };
     }
 
-    return { user, supabase };
+    return { user: user as AuthenticatedUser, supabase };
   } catch (error) {
     console.error("Auth check failed:", error);
     return {
