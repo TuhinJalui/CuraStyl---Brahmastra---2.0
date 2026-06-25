@@ -180,7 +180,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const origin = new URL(req.url).origin;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const origin = host ? `${proto}://${host}` : new URL(req.url).origin;
   const siteUrl = !origin.includes("localhost") 
     ? origin 
     : (process.env.NEXT_PUBLIC_SITE_URL || origin);

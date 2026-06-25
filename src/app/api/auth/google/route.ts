@@ -7,8 +7,10 @@ export async function GET(request: NextRequest) {
   const role = request.nextUrl.searchParams.get("role") ?? "customer";
   const cookieStore = await cookies();
 
-  // Dynamically determine the site URL, bypassing localhost env variables in production
-  const origin = new URL(request.url).origin;
+  // Dynamically determine the site URL using forwarded headers for accurate protocol & host on Vercel
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  const origin = host ? `${proto}://${host}` : new URL(request.url).origin;
   const siteUrl = !origin.includes("localhost") 
     ? origin 
     : (process.env.NEXT_PUBLIC_SITE_URL || origin);
