@@ -72,7 +72,7 @@ interface LiveBooking {
   id: string; booking_id: string; booking_date: string; time_slot: string;
   status: string; qr_verified: boolean; total_amount: number; final_amount: number;
   payment_method: string;
-  user: { full_name: string; email: string; phone: string } | null;
+  user: { full_name: string; email: string; phone: string; avatar_url?: string | null } | null;
   service: { name: string; category: string; duration: number } | null;
   staff: { name: string; role: string } | null;
 }
@@ -388,17 +388,46 @@ export default function SalonOwnerDashboard() {
     if (!salonId) return;
     setBookingsLoading(true);
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data: bookings, error } = await supabase
       .from("bookings")
-      .select(`id,booking_id,booking_date,time_slot,status,qr_verified,total_amount,final_amount,payment_method,
-        user:profiles(full_name,email,phone),
-        service:services(name,category,duration),
-        staff:staff(name,role)`)
+      .select(`*`)
       .eq("salon_id", salonId)
       .order("booking_date", { ascending: false })
       .order("time_slot", { ascending: false })
       .limit(200);
-    if (!error && data) setLiveBookings(data as unknown as LiveBooking[]);
+    
+    console.log("fetchLiveBookings - bookings:", bookings);
+    console.log("fetchLiveBookings - error:", error);
+    
+    if (!bookings || bookings.length === 0) {
+      setBookingsLoading(false);
+      return;
+    }
+    
+    // Fetch all related data manually
+    const [
+      { data: profiles },
+      { data: services },
+      { data: staffList }
+    ] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, email, phone, avatar_url").in("id", bookings.map(b => b.user_id).filter(Boolean)),
+      supabase.from("services").select("id, name, category, duration").in("id", bookings.map(b => b.service_id).filter(Boolean)),
+      supabase.from("staff").select("id, name, role").in("id", bookings.map(b => b.staff_id).filter(Boolean)),
+    ]);
+    
+    const profileMap = (profiles || []).reduce((acc, p) => { acc[p.id] = p; return acc; }, {} as any);
+    const serviceMap = (services || []).reduce((acc, s) => { acc[s.id] = s; return acc; }, {} as any);
+    const staffMap = (staffList || []).reduce((acc, s) => { acc[s.id] = s; return acc; }, {} as any);
+    
+    const fullData = bookings.map(booking => ({
+      ...booking,
+      user: profileMap[booking.user_id] || null,
+      service: serviceMap[booking.service_id] || null,
+      staff: staffMap[booking.staff_id] || null,
+    }));
+    
+    console.log("Full data with all relations:", fullData);
+    setLiveBookings(fullData as unknown as LiveBooking[]);
     setBookingsLoading(false);
   }, [salonId]);
 
@@ -800,9 +829,17 @@ export default function SalonOwnerDashboard() {
                         return (
                           <div key={b.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 text-sm shrink-0">
-                                {user?.full_name?.[0] ?? "?"}
-                              </div>
+                              {user?.avatar_url ? (
+                                <img
+                                  src={user.avatar_url}
+                                  alt={user?.full_name ?? "User"}
+                                  className="w-8 h-8 rounded-full object-cover shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 text-sm shrink-0">
+                                  {user?.full_name?.[0] ?? "?"}
+                                </div>
+                              )}
                               <div>
                                 <p className="font-medium text-white text-sm">{user?.full_name ?? "Unknown"}</p>
                                 <p className="text-xs text-white/40">{svc?.name} • {b.time_slot}{stf ? ` • ${stf.name}` : ""}</p>
@@ -839,9 +876,17 @@ export default function SalonOwnerDashboard() {
                       const user = b.user as any; const svc = b.service as any; const stf = b.staff as any;
                       return (
                         <div key={b.id} className="flex items-center gap-3 p-4 hover:bg-white/3 transition-colors flex-wrap">
-                          <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 shrink-0">
-                            {user?.full_name?.[0] ?? "?"}
-                          </div>
+                          {user?.avatar_url ? (
+                            <img
+                              src={user.avatar_url}
+                              alt={user?.full_name ?? "User"}
+                              className="w-9 h-9 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 shrink-0">
+                              {user?.full_name?.[0] ?? "?"}
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-white text-sm">{user?.full_name ?? "Unknown"}</p>
                             <p className="text-xs text-white/40">{svc?.name}{stf ? ` • ${stf.name}` : ""}</p>
@@ -912,9 +957,21 @@ export default function SalonOwnerDashboard() {
                         
                         return (
                           <div key={b.id} className={cn("flex items-center gap-4 p-4 transition-colors", isVerified ? "opacity-60 bg-emerald-500/3" : "hover:bg-white/3")}>
-                            <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0", isVerified ? "bg-emerald-500/20 text-emerald-300" : "bg-purple-500/20 text-purple-300")}>
-                              {isVerified ? <CheckCircle2 className="w-4 h-4" /> : (user?.full_name?.[0] ?? "?")}
-                            </div>
+                            {isVerified ? (
+                              <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                              </div>
+                            ) : user?.avatar_url ? (
+                              <img
+                                src={user.avatar_url}
+                                alt={user?.full_name ?? "User"}
+                                className="w-9 h-9 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-purple-300 shrink-0">
+                                {user?.full_name?.[0] ?? "?"}
+                              </div>
+                            )}
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-white text-sm">{user?.full_name ?? "Unknown"}</p>
                               <p className="text-xs text-white/40">{svc?.name} • {b.time_slot} • {dateLabel}</p>

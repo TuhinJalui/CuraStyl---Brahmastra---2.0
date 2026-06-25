@@ -7,7 +7,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-const SYSTEM_PROMPT = `You are AuraAI ✨, an expert beauty advisor for Mumbai GlamHub — a premium salon marketplace in Mumbai, India.
+const SYSTEM_PROMPT = `You are AuraAI ✨, an expert beauty advisor for CuraStyl — a premium salon marketplace in Mumbai, India.
 
 Your job is to help users:
 1. 💅 Find the best salons based on their needs (budget, location, service type, rating)
@@ -414,7 +414,35 @@ function generateImageTitles(queryIntent: any, imageCount: number, detectedGende
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, language } = await req.json();
+    const { messages, language, mode } = await req.json();
+    
+    // Handle simple navigation requests from MiniChatWidget first
+    if (mode === "simple") {
+      try {
+        // Use a simpler system prompt focused only on navigation
+        const simpleSystemPrompt = messages[0]?.content?.includes("[SYSTEM]:") 
+          ? messages[0].content 
+          : "You are GlamBot, a friendly navigation assistant for Mumbai GlamHub. Help users find pages and navigate the app with links.";
+        
+        // Build conversation without all the extra processing
+        const conversation = messages.map((m: any) => ({
+          role: m.role,
+          content: m.content
+        }));
+        
+        const reply = await generateWithRetry("gemini-1.5-flash", 
+          `${simpleSystemPrompt}\n\nConversation:\n${conversation.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")}\n\nAssistant:`, 
+          { maxTokens: 300, temperature: 0.7 }
+        );
+        
+        return NextResponse.json({ reply, visualElements: null });
+      } catch (err) {
+        return NextResponse.json({ 
+          reply: "I'm here to help! Visit our [Salons](/salons) page or [AI Assistant](/ai-assistant) for advanced help.", 
+          visualElements: null 
+        });
+      }
+    }
 
     // Ensure at least one Gemini API key is configured
     const hasGeminiKey = !!(
@@ -494,7 +522,7 @@ export async function POST(req: NextRequest) {
     // Only fetch images for queries that actually need visual content
     if (responsePlan.shouldFetchImages && responsePlan.imageCount > 0) {
       try {
-        const keywords = extractImageSearchKeywords(lastContent, queryIntent.type, detectedGender);
+        const keywords = responsePlan.imageKeywords || extractImageSearchKeywords(lastContent, queryIntent.type, detectedGender);
         
         // Skip image fetching for non-visual queries like "what can you do", "hello", etc.
         const nonVisualKeywords = ['what can you', 'who are you', 'hello', 'hi', 'help', 'how are you', 'thanks', 'thank you'];

@@ -13,17 +13,19 @@ interface Message {
 
 const QUICK_ACTIONS = [
   { text: "🔍 Find salons near me", query: "Show salons near my location" },
-  { text: "📅 Book appointment", query: "How do I book an appointment on GlamHub?" },
+  { text: "📅 Book appointment", query: "How do I book an appointment on CuraStyl?" },
   { text: "🎁 GlamPoints rewards", query: "How do I earn and use GlamPoints?" },
-  { text: "❓ How does it work?", query: "Give me a quick tour of GlamHub" },
+  { text: "💼 Salon Owner Login", query: "How do I login as a salon owner?" },
+  { text: "🏪 Register a Salon", query: "How do I register my salon on CuraStyl?" },
+  { text: "❓ How does it work?", query: "Give me a quick tour of CuraStyl" },
 ];
 
-// Mumbai GlamHub navigation context for the AI
-const NAV_SYSTEM_PROMPT = `You are GlamBot, a friendly and helpful navigation assistant for Mumbai GlamHub - a premium salon booking platform in Mumbai, India.
+// Mumbai CuraStyl navigation context for the AI
+const NAV_SYSTEM_PROMPT = `You are CuraBot, a friendly and helpful navigation assistant for Mumbai CuraStyl - a premium salon booking platform in Mumbai, India.
 
-Your ONLY job is to help users navigate GlamHub and find what they're looking for. Be concise, friendly, and always use markdown links to guide users.
+Your ONLY job is to help BOTH CUSTOMERS and SALON OWNERS navigate CuraStyl and find what they're looking for. Be concise, friendly, and always use markdown links to guide users.
 
-Key pages you should link to:
+Key pages for CUSTOMERS:
 - Home Dashboard: [Home](/)
 - Browse Salons: [Salons](/salons)
 - AI Beauty Assistant (advanced): [AI Assistant](/ai-assistant)
@@ -34,21 +36,32 @@ Key pages you should link to:
 - Special Offers: [Offers](/offers)
 - Virtual Try-On: [Virtual Try-On](/virtual-tryon)
 
-Features you know about:
+Key pages for SALON OWNERS:
+- Salon Owner Login: [Owner Login](/auth/salon-owner-login)
+- Salon Owner Dashboard: [Owner Dashboard](/salon-owner/dashboard)
+- Register a New Salon: [Register Salon](/salon-owner/register)
+
+Features you know about (CUSTOMERS):
 - GlamPoints: Users earn 100 pts on signup, 1 pt per ₹100 spent on completed bookings, 50 pts for writing reviews
 - Booking: Users can book salon appointments by browsing to /salons, clicking a salon, choosing a service + staff + time slot
-- Coupons/Discounts: FIRST15 (15% off first booking), GLAMHUB10 (10% off), MONDAY20 (Monday special)
+- Coupons/Discounts: FIRST15 (15% off first booking), CuraStyl10 (10% off), MONDAY20 (Monday special)
 - Favorites: Users can heart ❤️ any salon to save it
 - AI Assistant: Advanced beauty AI at /ai-assistant for face analysis, style DNA, hair recommendations
 - Notifications: Booking confirmations and updates appear in the bell icon in the navbar
 - Membership Tiers: Basic (0 pts), Premium (1000 pts), VIP (5000 pts)
 
+Features you know about (SALON OWNERS):
+- Manage salon profile, services, staff, and bookings from the Salon Owner Dashboard
+- Register new salons at /salon-owner/register
+- Login at /auth/salon-owner-login
+
 Rules:
-- Only answer questions about navigating GlamHub or beauty/salon topics
+- Only answer questions about navigating CuraStyl or beauty/salon topics
 - Always be helpful and guide users to the right page with a markdown link
 - Keep responses SHORT (2-4 sentences max)
 - Use 1-2 relevant emojis
-- If someone asks something unrelated to GlamHub or beauty, politely redirect them`;
+- If someone asks something unrelated to CuraStyl or beauty, politely redirect them
+- For advanced beauty/style advice, direct users to the [AI Assistant](/ai-assistant)`;
 
 export default function MiniChatWidget() {
   const pathname = usePathname();
@@ -58,7 +71,7 @@ export default function MiniChatWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "👋 Hi! I'm **Aura**, your GlamHub navigation guide! I can help you find salons, book appointments, check rewards, and navigate the app. What do you need?",
+      content: "👋 Hi! I'm **Aura**, your CuraStyl navigation guide! I can help you find salons, book appointments, check rewards, and navigate the app. What do you need?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -83,10 +96,9 @@ export default function MiniChatWidget() {
   // Avoid rendering the floating UI during SSR to keep server/client HTML consistent.
   if (!mounted) return null;
 
-  // Do not show floating MiniChat on the full AI Assistant page, any auth pages, or salon-owner routes
+  // Do not show floating MiniChat on the full AI Assistant page or auth pages
   if (pathname?.startsWith("/ai-assistant")) return null;
   if (pathname?.startsWith("/auth")) return null;
-  if (pathname?.startsWith("/salon-owner")) return null;
 
   const startRecording = async () => {
     try {
@@ -158,6 +170,7 @@ export default function MiniChatWidget() {
         body: JSON.stringify({
           messages: conversationForAPI,
           features: {},
+          mode: "simple", // Mark this as a simple navigation request
         }),
       });
 
@@ -173,20 +186,29 @@ export default function MiniChatWidget() {
       let response = "";
       const lc = content.toLowerCase();
 
-      if (lc.includes("salon") || lc.includes("barber") || lc.includes("find")) {
+      // Salon Owner queries
+      if (lc.includes("salon owner") || lc.includes("owner dashboard") || lc.includes("manage salon")) {
+        response = "Salon owners can manage their business from the [Owner Dashboard](/salon-owner/dashboard) 💼! Login at [Owner Login](/auth/salon-owner-login) or register a new salon at [Register Salon](/salon-owner/register)";
+      } else if (lc.includes("register salon") || lc.includes("add salon")) {
+        response = "Register your salon at [Register Salon](/salon-owner/register) 🏪! Fill in your salon details to get listed on CuraStyl!";
+      } else if (lc.includes("owner login")) {
+        response = "Salon owners can login at [Owner Login](/auth/salon-owner-login) 🔐!";
+      } 
+      // Customer queries
+      else if (lc.includes("salon") || lc.includes("barber") || lc.includes("find")) {
         response = "Browse our verified salons on the [Salons page](/salons) 💇! Use area & service filters to find the perfect match.";
       } else if (lc.includes("book") || lc.includes("appointment")) {
         response = "Go to [Salons](/salons), pick a salon, choose a service & time slot, and confirm your booking! Takes less than 2 min 📅";
       } else if (lc.includes("point") || lc.includes("reward") || lc.includes("glam")) {
         response = "You earn 100 pts on signup + 1 pt per ₹100 spent! Check your [Rewards dashboard](/rewards) 🎁";
       } else if (lc.includes("offer") || lc.includes("coupon") || lc.includes("discount")) {
-        response = "Check our [Offers page](/offers) for deals! You can also use codes like **GLAMHUB10** (10% off) or **FIRST15** (15% off first booking) 🎉";
+        response = "Check our [Offers page](/offers) for deals! You can also use codes like **CuraStyl10** (10% off) or **FIRST15** (15% off first booking) 🎉";
       } else if (lc.includes("ai") || lc.includes("assistant") || lc.includes("face")) {
         response = "Our advanced [AI Beauty Assistant](/ai-assistant) can analyze your face shape, recommend styles, and find perfect salons! ✨";
       } else if (lc.includes("profile") || lc.includes("account")) {
         response = "Manage your account at [Profile](/profile). You can update your name, phone, and see your GlamPoints balance 👤";
       } else {
-        response = `For detailed help, our [AI Assistant](/ai-assistant) is perfect for beauty advice! Or browse [Salons](/salons) to get started 🌟`;
+        response = `For detailed beauty/style help, try our [AI Assistant](/ai-assistant)! Or browse [Salons](/salons) to get started 🌟`;
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: response }]);
@@ -232,7 +254,7 @@ export default function MiniChatWidget() {
                 <img src="/images/aura-avatar.jpg" alt="Aura Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h3 className="font-semibold text-white text-sm">Aura — GlamBot</h3>
+                <h3 className="font-semibold text-white text-sm">Aura — CuraBot</h3>
                 <p className="text-xs text-white/50 flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                   AI-powered • Navigation Guide
@@ -351,7 +373,7 @@ export default function MiniChatWidget() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    placeholder="Ask me anything about GlamHub..."
+                    placeholder="Ask me anything about CuraStyl..."
                     className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/40 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 outline-none"
                   />
                   <button

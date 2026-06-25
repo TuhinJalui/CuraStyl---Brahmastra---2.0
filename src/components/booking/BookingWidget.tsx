@@ -275,6 +275,7 @@ export default function BookingWidget({ salon, services, staff }: Props) {
           </div>
         )}
 
+
         {/* Step 4: Choose Time */}
         {step === 4 && (
           <div>

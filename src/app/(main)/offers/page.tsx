@@ -125,20 +125,7 @@ export default function OffersPage() {
             </div>
           ))}
         </div>
-
-        {/* Bottom CTA */}
-        <div className="mt-16 text-center glass-card p-10 border-purple-500/20">
-          <h2 className="text-2xl font-bold text-white mb-3">Never Miss a Deal</h2>
-          <p className="text-white/50 mb-6">Get exclusive offers straight to your inbox every week.</p>
-          <div className="flex items-center gap-3 max-w-sm mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 bg-white/5 border border-purple-500/20 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-purple-500/50"
-            />
-            <Button className="shrink-0">Subscribe</Button>
-          </div>
-        </div>
+        
       </div>
     </div>
   );

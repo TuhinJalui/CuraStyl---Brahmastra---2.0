@@ -9,6 +9,48 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+export interface ImageResult {
+  url: string;
+  alt?: string;
+}
+
+export function ImageGrid({ images }: { images: ImageResult[] }) {
+  if (!images || images.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {images.map((image, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="relative group"
+          >
+            <div className="aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/5">
+              <img
+                src={image.url}
+                alt={image.alt || `Image ${index + 1}`}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1595777707802-038daca6d617?w=400&h=400&fit=crop';
+                }}
+              />
+            </div>
+            {image.alt && (
+              <p className="mt-1 text-xs text-white/70 line-clamp-2 text-center">
+                {image.alt}
+              </p>
+            )}
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Style Identity Card with Avatar
 export function StyleIdentityCard({ identity }: { identity: any }) {
   const avatars: Record<string, string> = {

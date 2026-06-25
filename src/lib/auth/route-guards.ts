@@ -174,13 +174,13 @@ export function forbiddenResponse(message = "Access denied") {
 /**
  * Return auth error response based on result
  */
-export function authErrorResponse(result: AuthResult) {
+export function authErrorResponse(result: AuthResult): NextResponse {
   if (!result.user) {
     return result.error?.toLowerCase().includes("access denied")
       ? forbiddenResponse(result.error)
       : unauthorizedResponse(result.error);
   }
-  return null;
+  return unauthorizedResponse("Authentication required");
 }
 
 // ============================================

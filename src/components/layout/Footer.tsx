@@ -20,7 +20,7 @@ export default function Footer() {
                 <Scissors className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="font-bold text-lg gradient-text leading-none">Mumbai GlamHub</div>
+                <div className="font-bold text-lg gradient-text leading-none">CuraStyl</div>
               </div>
             </div>
             <p className="text-white/50 text-sm leading-relaxed">

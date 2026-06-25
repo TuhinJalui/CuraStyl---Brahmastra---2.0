@@ -12,7 +12,7 @@ import { loadMemory, saveMemory, extractMemoryUpdates } from "@/lib/ai/memory-sy
 // AIFeatureShowcase intentionally not imported here (file is commented out);
 // render a lightweight placeholder instead to avoid runtime errors.
 import Tier3Cards from "@/components/ai/Tier3Cards";
-import { StyleIdentityCard, TransformationRoadmap, ConfidenceScoreCard, SalonMatchCard, PerceptionImpactCard, RegretPreventionCard, HiddenPotentialCard } from "@/components/ai/VisualResponseCards";
+import { StyleIdentityCard, TransformationRoadmap, ConfidenceScoreCard, SalonMatchCard, PerceptionImpactCard, RegretPreventionCard, HiddenPotentialCard, ImageGrid } from "@/components/ai/VisualResponseCards";
 import { parseAIResponse } from "@/lib/ai/response-parser";
 import type { ParsedResponse } from "@/lib/ai/response-parser";
 import { useAIAnalytics } from "@/lib/ai/analytics";
@@ -726,7 +726,7 @@ export default function AIAssistantClient() {
               <img src="/images/aura-avatar.jpg" alt="Aura" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-white text-sm sm:text-base truncate">Aura - GlamBot</p>
+              <p className="font-semibold text-white text-sm sm:text-base truncate">Aura - CuraBot</p>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-xs text-white/50">AI</span>
@@ -1022,12 +1022,17 @@ export default function AIAssistantClient() {
                       </div>
                     )}
 
-                    {/* Show carousel inline after assistant message if it has images */}
-                    {!isUser && isLast && (parsed as any)?.images && (parsed as any).images.length > 0 && (
-                      <div className="w-full mt-4 pl-14 md:pl-12 sm:pl-11">
-                        <ImageCarousel images={(parsed as any).images} />
-                      </div>
-                    )}
+                    {/* Show image grid inline after assistant message if it has images */}
+              {!isUser && isLast && (
+                (() => {
+                  const images = (parsed as any)?.images || (parsed as any)?.visualElements?.images;
+                  return images && images.length > 0 ? (
+                    <div className="w-full mt-4 pl-14 md:pl-12 sm:pl-11">
+                      <ImageGrid images={images} />
+                    </div>
+                  ) : null;
+                })()
+              )}
                   </div>
                 );
               })}

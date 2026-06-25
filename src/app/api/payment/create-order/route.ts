@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       currency: payment.currency,
       // UPI details for direct payment
       upiId: "7507075722@mbk",
-      upiName: "Mumbai GlamHub",
+      upiName: "CuraStyl",
       // For Razorpay integration (optional)
       razorpayKey: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
       razorpayOrderId: orderId,

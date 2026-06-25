@@ -91,8 +91,7 @@ export default function Navbar() {
               <Scissors className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-bold text-lg gradient-text">Mumbai</span>
-              <span className="font-bold text-lg gradient-text -mt-1">GlamHub</span>
+              <span className="font-bold text-lg gradient-text">CuraStyl</span>
             </div>
           </Link>
 
@@ -265,21 +264,7 @@ export default function Navbar() {
                       {isOwner ? (
                         /* Salon Owner Menu */
                         <>
-                          <Link href="/salon-owner/dashboard" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/5 hover:text-white transition-all">
-                            <LayoutDashboard className="w-4 h-4" /> Dashboard
-                          </Link>
-                          <Link href="/salon-owner/dashboard?tab=my-salon" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/5 hover:text-white transition-all">
-                            <Settings className="w-4 h-4" /> Salon Settings
-                          </Link>
-                          <Link href="/salon-owner/dashboard?tab=scan-qr" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/5 hover:text-white transition-all">
-                            <QrCode className="w-4 h-4" /> Scan QR Code
-                          </Link>
-                          <Link href="/salon-owner/dashboard?tab=analytics" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/5 hover:text-white transition-all">
-                            <BarChart2 className="w-4 h-4" /> Analytics
-                          </Link>
-                          <Link href="/salon-owner/dashboard?tab=my-plan" onClick={() => setIsUserMenuOpen(false)} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/5 hover:text-white transition-all">
-                            <CreditCard className="w-4 h-4" /> My Plan
-                          </Link>
+                         
                         </>
                       ) : (
                         /* Customer Menu */

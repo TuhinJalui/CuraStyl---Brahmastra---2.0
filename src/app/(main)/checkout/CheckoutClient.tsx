@@ -61,6 +61,7 @@ export default function CheckoutClient() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState("");
   const [createdBooking, setCreatedBooking] = useState<any>(null);
+  const [upiId, setUpiId] = useState("");
 
   const discount = appliedCoupon
     ? appliedCoupon.type === "pct"
@@ -114,7 +115,25 @@ export default function CheckoutClient() {
 
   const isCash = paymentMethod === "cash_in_hand";
 
+  // UPI ID validation regex
+  const validateUpiId = (id: string) => {
+    // Standard UPI format: alphanumeric@bank (e.g., name@upi, 1234567890@paytm)
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z0-9]{2,}$/;
+    return upiRegex.test(id.trim());
+  };
+
   const handlePay = async () => {
+    // Validate UPI ID if payment method is UPI
+    if (paymentMethod === "upi") {
+      if (!upiId.trim()) {
+        toast.error("Please enter your UPI ID");
+        return;
+      }
+      if (!validateUpiId(upiId)) {
+        toast.error("You entered an invalid UPI ID. Please enter a valid UPI ID (e.g., yourname@upi)");
+        return;
+      }
+    }
     setIsProcessing(true);
     try {
       const res = await fetch("/api/bookings", {
@@ -481,7 +500,12 @@ export default function CheckoutClient() {
             {paymentMethod === "upi" && (
               <div className="glass-card p-5">
                 <label className="block text-sm text-white/60 mb-2">UPI ID</label>
-                <Input placeholder="yourname@upi" />
+                <Input 
+                  placeholder="yourname@upi" 
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !isProcessing && handlePay()}
+                />
                 <p className="text-xs text-white/30 mt-2">We&apos;ll send a payment request to your UPI app</p>
               </div>
             )}
