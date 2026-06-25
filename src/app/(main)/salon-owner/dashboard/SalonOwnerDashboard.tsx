@@ -1221,9 +1221,7 @@ export default function SalonOwnerDashboard() {
                       {staff.length >= staffLimit && staffLimit !== Infinity && <span className="text-amber-400 ml-2">• Upgrade to add more</span>}
                     </p>
                   </div>
-                  <Button onClick={openAddStaff} disabled={staff.length >= staffLimit && staffLimit !== Infinity} className="gap-1.5">
-                    <Plus className="w-4 h-4" />Add Staff
-                  </Button>
+
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {staffLoading ? (

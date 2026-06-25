@@ -210,11 +210,11 @@ export async function getSearchImages(keywords: string, limit = 6) {
     s.status === 'fulfilled' && Array.isArray(s.value) ? s.value : []
   );
 
-  // Interleave results from all sources to balance diversity
+  // Interleave active search sources first (Google CSE, Bing, DuckDuckGo, Direct Search)
   let idx = 0;
   while (final.length < limit) {
     let added = false;
-    for (let i = 0; i < arrays.length; i++) {
+    for (let i = 0; i < 4; i++) {
       const item = arrays[i][idx];
       if (item) {
         pushUnique(item.url, item.alt);
@@ -224,6 +224,18 @@ export async function getSearchImages(keywords: string, limit = 6) {
     }
     if (!added) break;
     idx++;
+  }
+
+  // Only if we don't have enough images, fall back to hardcoded Unsplash IDs (index 4)
+  if (final.length < limit) {
+    let uIdx = 0;
+    while (final.length < limit && uIdx < arrays[4].length) {
+      const item = arrays[4][uIdx];
+      if (item) {
+        pushUnique(item.url, item.alt);
+      }
+      uIdx++;
+    }
   }
 
   console.log('[Image Sources] Final result:', {
